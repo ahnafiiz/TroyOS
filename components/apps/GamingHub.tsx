@@ -1,6 +1,29 @@
 // components/apps/GamingHub.tsx
 'use client';
 
+// At the top of GamingHub.tsx — add this import
+import { GAMES, GameConfig } from '@/config/games';
+import { useOSStore } from '@/store/useOSStore';
+
+// Replace your launchGame function with this:
+const launchGame = (game: GameConfig) => {
+  if (game.type === 'builtin') {
+    // Open as a window inside Troy OS — uses the game ID as the appId
+    openApp(
+      game.id.toString(),  // Desktop.tsx looks this up in BUILTIN_GAMES
+      game.name,
+      game.emoji,
+      game.color,
+      520,   // Width
+      560,   // Height
+    );
+  } else {
+    // External games can't be embedded — open in new tab
+    window.open(game.url, '_blank', 'noopener,noreferrer');
+    addNotification(`Opening ${game.name} in a new tab`, game.emoji);
+  }
+};
+
 import { useOSStore } from '@/store/useOSStore';
 import { GAMES, GameConfig } from '@/config/games';
 import { useMemo, useState } from 'react';

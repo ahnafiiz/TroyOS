@@ -1,7 +1,8 @@
+// config/games.ts
 export interface GameConfig {
   id: number;
   name: string;
-  url: string;
+  url?: string;           // Only for external games
   category: string;
   rating: string;
   plays: string;
@@ -9,9 +10,62 @@ export interface GameConfig {
   color: string;
   description: string;
   featured?: boolean;
+  featuredTag?: string;
+  type: 'builtin' | 'external'; // ← NEW: controls how the game launches
 }
 
 export const GAMES: GameConfig[] = [
+  // ── BUILT-IN GAMES (run natively inside Troy OS, always work) ──────
+  {
+    id: 10,
+    name: 'Snake',
+    category: 'Arcade',
+    rating: '4.5',
+    plays: '∞',
+    emoji: '🐍',
+    color: '#10b981',
+    description: 'Classic snake — arrow keys or tap to control',
+    type: 'builtin',
+    featured: true,
+    featuredTag: 'Built-in',
+  },
+  {
+    id: 11,
+    name: '2048',
+    category: 'Puzzle',
+    rating: '4.7',
+    plays: '∞',
+    emoji: '🔢',
+    color: '#f59e0b',
+    description: 'Merge tiles to reach 2048 — arrow keys to slide',
+    type: 'builtin',
+    featured: true,
+    featuredTag: 'Built-in',
+  },
+  {
+    id: 12,
+    name: 'Memory Match',
+    category: 'Puzzle',
+    rating: '4.6',
+    plays: '∞',
+    emoji: '🃏',
+    color: '#8b5cf6',
+    description: 'Flip cards and find matching pairs',
+    type: 'builtin',
+  },
+  {
+    id: 13,
+    name: 'Tic Tac Toe',
+    category: 'Strategy',
+    rating: '4.3',
+    plays: '∞',
+    emoji: '⭕',
+    color: '#3b82f6',
+    description: 'Classic X vs O — two player on one keyboard',
+    type: 'builtin',
+  },
+
+  // ── EXTERNAL GAMES (open in new tab — cannot be embedded) ──────────
   {
     id: 1,
     name: 'Troy Cloud',
@@ -19,32 +73,12 @@ export const GAMES: GameConfig[] = [
     category: 'Adventure',
     rating: '4.8',
     plays: '2.4M',
-    emoji: 'TROY',
+    emoji: '🦝',
     color: '#f59e0b',
     description: 'Explore the world as a crafty raccoon',
+    type: 'external',
     featured: true,
-  },
-  {
-    id: 2,
-    name: '2048',
-    url: 'https://play2048.co/',
-    category: 'Puzzle',
-    rating: '4.6',
-    plays: '18M',
-    emoji: '🔢',
-    color: '#10b981',
-    description: 'Merge tiles to reach 2048',
-  },
-  {
-    id: 6,
-    name: 'Sudoku',
-    url: 'https://sudoku.com/',
-    category: 'Puzzle',
-    rating: '4.7',
-    plays: '12M',
-    emoji: '🧩',
-    color: '#3b82f6',
-    description: 'Classic number puzzle game',
+    featuredTag: 'Top Pick',
   },
   {
     id: 3,
@@ -55,18 +89,20 @@ export const GAMES: GameConfig[] = [
     plays: '50M',
     emoji: '♟️',
     color: '#8b5cf6',
-    description: 'Play chess against AI',
+    description: 'Play chess against AI — opens in new tab',
+    type: 'external',
   },
   {
     id: 4,
     name: 'Slither.io',
     url: 'https://slither.io/',
-    category: 'Action',
+    category: 'Arcade',
     rating: '4.5',
     plays: '30M',
     emoji: '🐍',
     color: '#ef4444',
-    description: 'Massive multiplayer snake',
+    description: 'Massive multiplayer snake — opens in new tab',
+    type: 'external',
   },
   {
     id: 5,
@@ -77,6 +113,19 @@ export const GAMES: GameConfig[] = [
     plays: '10M',
     emoji: '🔤',
     color: '#06b6d4',
-    description: 'Guess the 5-letter word',
+    description: 'Guess the 5-letter word daily — opens in new tab',
+    type: 'external',
+  },
+  {
+    id: 6,
+    name: 'Sudoku',
+    url: 'https://sudoku.com/',
+    category: 'Puzzle',
+    rating: '4.7',
+    plays: '12M',
+    emoji: '🧩',
+    color: '#3b82f6',
+    description: 'Classic number puzzle — opens in new tab',
+    type: 'external',
   },
 ];

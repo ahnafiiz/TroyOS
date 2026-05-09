@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { DEFAULTS } from '@/config/themes';
+const { openApp, addNotification } = useOSStore();
 
 // A "Window" is one open app instance on screen
 export interface OSWindow {
