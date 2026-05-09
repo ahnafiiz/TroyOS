@@ -89,7 +89,7 @@ export default function Desktop() {
   }, [setTime]);
 
   useEffect(() => {
-    const timer = setTimeout(() => addNotification('Troy OS V2.0.1'), 1200);
+    const timer = setTimeout(() => addNotification('Troy OS V2.0.1', 'System Booted'), 1200);
     return () => clearTimeout(timer);
   }, [addNotification]);
 
