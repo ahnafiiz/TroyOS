@@ -165,7 +165,7 @@ export default function GamingHub() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: '65%' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <span style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em', color: hero.color, background: `${hero.color}22`, padding: '4px 10px', borderRadius: 20 }}>
-                            {hero.featuredTag || "New Title"}
+                            {(hero as any).featuredTag || "New Title"}
                           </span>
                           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}> | {hero.category}</span>
                         </div>
