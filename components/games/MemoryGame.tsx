@@ -1,3 +1,4 @@
+// components/games/MemoryGame.tsx
 'use client';
 
 import { useState } from 'react';
@@ -66,7 +67,9 @@ export default function MemoryGame() {
       {/* Cards grid — 5 cols × 4 rows for 20 cards (10 pairs) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
         {cards.map(card => (
-          <div key={card.id} onClick={() => flip(card.id)}
+          <div
+            key={card.id}
+            onClick={() => flip(card.id)}
             style={{
               width: 58, height: 58, borderRadius: 10,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -81,4 +84,26 @@ export default function MemoryGame() {
                 : card.flipped
                 ? 'rgba(139,92,246,0.5)'
                 : 'rgba(255,255,255,0.08)'}`,
-              transform: card.flipped || card.matched ? 'scale(1)' : 'scale(0.94)
+              transform: card.flipped || card.matched ? 'scale(1)' : 'scale(0.94)',
+              transition: 'all 0.2s ease',
+              userSelect: 'none',
+            }}
+          >
+            {card.flipped || card.matched ? card.symbol : ''}
+          </div>
+        ))}
+      </div>
+
+      {/* Win overlay */}
+      {won && (
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 22, fontWeight: 900, color: '#10b981' }}>You won! 🎉</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>Completed in {moves} moves</div>
+          <button onClick={reset} style={{ marginTop: 12, background: '#8b5cf6', border: 'none', color: '#fff', borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            Play Again
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

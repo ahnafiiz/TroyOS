@@ -1,3 +1,4 @@
+// components/games/TicTacToe.tsx
 'use client';
 
 import { useState } from 'react';
@@ -49,8 +50,64 @@ export default function TicTacToe() {
 
       {/* Status */}
       <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.6)', minHeight: 20 }}>
-        {result ? `${result.winner} wins! 🎉` : isDraw ? "Draw — nice game!" : `${turn}'s turn`}
+        {result ? `${result.winner} wins! 🎉` : isDraw ? 'Draw — nice game!' : `${turn}'s turn`}
       </div>
 
       {/* Board */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 84px)', gridTemplateRows
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 84px)',
+        gridTemplateRows: 'repeat(3, 84px)',
+        gap: 6,
+      }}>
+        {board.map((cell, i) => {
+          const isWinCell = result?.line.includes(i);
+          return (
+            <div
+              key={i}
+              onClick={() => play(i)}
+              style={{
+                width: 84, height: 84, borderRadius: 12,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 32, fontWeight: 900,
+                cursor: cell || result || isDraw ? 'default' : 'pointer',
+                background: isWinCell
+                  ? (result?.winner === 'X' ? 'rgba(59,130,246,0.2)' : 'rgba(239,68,68,0.2)')
+                  : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${isWinCell
+                  ? (result?.winner === 'X' ? 'rgba(59,130,246,0.5)' : 'rgba(239,68,68,0.5)')
+                  : 'rgba(255,255,255,0.08)'}`,
+                color: cell === 'X' ? '#3b82f6' : '#ef4444',
+                transition: 'all 0.15s ease',
+                userSelect: 'none',
+              }}
+              onMouseEnter={e => { if (!cell && !result && !isDraw) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => { if (!isWinCell) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+            >
+              {cell}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Reset */}
+      <button
+        onClick={reset}
+        style={{
+          marginTop: 4,
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          color: 'rgba(255,255,255,0.6)',
+          borderRadius: 8,
+          padding: '8px 20px',
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: 'pointer',
+          letterSpacing: '0.05em',
+        }}
+      >
+        NEW GAME
+      </button>
+    </div>
+  );
+}

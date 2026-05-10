@@ -1,40 +1,9 @@
 // components/apps/GamingHub.tsx
 'use client';
 
-// At the top of GamingHub.tsx — add this import
-import { GAMES, GameConfig } from '@/config/games';
-import { useOSStore } from '@/store/useOSStore';
-
-// Replace your launchGame function with this:
-const launchGame = (game: GameConfig) => {
-  if (game.type === 'builtin') {
-    // Open as a window inside Troy OS — uses the game ID as the appId
-    openApp(
-      game.id.toString(),  // Desktop.tsx looks this up in BUILTIN_GAMES
-      game.name,
-      game.emoji,
-      game.color,
-      520,   // Width
-      560,   // Height
-    );
-  } else {
-    // External games can't be embedded — open in new tab
-    window.open(game.url, '_blank', 'noopener,noreferrer');
-    addNotification(`Opening ${game.name} in a new tab`, game.emoji);
-  }
-};
-
-import { useOSStore } from '@/store/useOSStore';
-import { GAMES, GameConfig } from '@/config/games';
 import { useMemo, useState } from 'react';
-
-/**
- * ── TROY ARCADE (GAMING HUB V2.0) ──────────────────────────────────────
- * A premium, highly detailed console-like interface for launching web-games.
- * Features: A vibrant 'Hero' carousel, category filtering, a detailed game list,
- * an enhanced status footer, and a large library of 30+ games.
- * ────────────────────────────────────────────────────────────────────
- */
+import { useOSStore } from '@/store/useOSStore';
+import { GAMES, GameConfig } from '@/config/games';
 
 const GEIST_FONT = 'var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Inter", sans-serif';
 
@@ -42,7 +11,6 @@ export default function GamingHub() {
   const { openApp } = useOSStore();
   const [activeTab, setActiveTab] = useState('All');
 
-  // 1. Core logic to filter and group games
   const filteredGames = useMemo(() => {
     if (activeTab === 'All') return GAMES;
     if (activeTab === 'Featured') return GAMES.filter(g => g.featured);
@@ -51,15 +19,13 @@ export default function GamingHub() {
 
   const featuredGames = useMemo(() => GAMES.filter(g => g.featured), []);
 
-  // 2. Map of category IDs to emojis for the nav rail
   const categoryIcons: Record<string, string> = {
-    'All': '🏠', 'Featured': '🌟', 'Arcade': '🕹️', 'Puzzle': '🧩', 
+    'All': '🏠', 'Featured': '🌟', 'Arcade': '🕹️', 'Puzzle': '🧩',
     'Strategy': '♟️', 'Shooter': '🔫', 'Adventure': '🗺️', 'Sports': '⚽'
   };
 
   const navCategories = ['All', 'Featured', ...new Set(GAMES.map(g => g.category))].sort();
 
-  // 3. Game Launch Handler
   const launchGame = (game: GameConfig) => {
     openApp(game.id.toString(), game.name, game.emoji, game.color, 820, 680);
   };
@@ -68,7 +34,7 @@ export default function GamingHub() {
     <div style={{
       display: 'flex',
       height: '100%',
-      background: '#0a0c10', // Ultra dark background for detail contrast
+      background: '#0a0c10',
       color: '#fff',
       fontFamily: GEIST_FONT,
       overflow: 'hidden',
@@ -93,7 +59,7 @@ export default function GamingHub() {
         background: '#0d0f14',
       }}>
         <span style={{ fontSize: 24, filter: 'drop-shadow(0 0 10px #8b5cf666)' }}>🎮</span>
-        
+
         {navCategories.map(cat => (
           <button
             key={cat}
@@ -112,7 +78,7 @@ export default function GamingHub() {
               {cat}
             </span>
             {activeTab === cat && (
-              <div style={{ position: 'absolute', right: -1, top: '20%', height: '60%', width: 2, background: '#8b5cf6', borderRadius: 2 }}/>
+              <div style={{ position: 'absolute', right: -1, top: '20%', height: '60%', width: 2, background: '#8b5cf6', borderRadius: 2 }} />
             )}
           </button>
         ))}
@@ -126,12 +92,11 @@ export default function GamingHub() {
         overflow: 'hidden',
         position: 'relative'
       }}>
-        {/* Subtle geometric grid background overlay */}
         <div style={{
           position: 'absolute', inset: 0, opacity: 0.015,
           backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
           backgroundSize: '40px 40px',
-        }}/>
+        }} />
 
         {/* ── MAIN HEADER ── */}
         <div style={{
@@ -147,7 +112,8 @@ export default function GamingHub() {
             </h1>
           </div>
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', borderRadius: 30, background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)'
+            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', borderRadius: 30,
+            background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)'
           }}>
             <span style={{ fontSize: 16 }}>🌟</span>
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>TROY Points</span>
@@ -157,8 +123,8 @@ export default function GamingHub() {
 
         {/* ── SCROLLABLE GAME VIEW ── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '40px', position: 'relative', zIndex: 4 }}>
-          
-          {/* ── 1. VIBRANT HERO CAROUSEL ── */}
+
+          {/* ── HERO CAROUSEL ── */}
           {(activeTab === 'All' || activeTab === 'Featured') && featuredGames.length > 0 && (
             <div style={{ marginBottom: 40 }}>
               <div style={{ display: 'flex', gap: 24, overflowX: 'auto', paddingBottom: 15 }}>
@@ -173,22 +139,18 @@ export default function GamingHub() {
                       boxShadow: i === 0 ? `0 15px 40px -5px ${hero.color}33, 0 10px 20px -10px ${hero.color}22` : '0 10px 30px rgba(0,0,0,0.5)',
                       transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 20px 50px -5px ${hero.color}44, 0 10px 20px -10px ${hero.color}33` }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = i === 0 ? `0 15px 40px -5px ${hero.color}33` : '0 10px 30px rgba(0,0,0,0.5)' }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 20px 50px -5px ${hero.color}44`; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = i === 0 ? `0 15px 40px -5px ${hero.color}33` : '0 10px 30px rgba(0,0,0,0.5)'; }}
                   >
-                    {/* Background visual detail */}
-                    <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, ${hero.color} 0%, ${hero.color}11 100%)`, opacity: 0.15, mixBlendMode: 'plus-lighter' }} />
-                    
-                    {/* Large background emoji detail */}
+                    <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, ${hero.color} 0%, ${hero.color}11 100%)`, opacity: 0.15 }} />
                     <div style={{ position: 'absolute', right: -20, bottom: -40, fontSize: 180, opacity: 0.07, filter: `drop-shadow(0 0 20px ${hero.color})` }}>
                       {hero.emoji}
                     </div>
-
                     <div style={{ position: 'relative', zIndex: 3, padding: '30px 40px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: '65%' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <span style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em', color: hero.color, background: `${hero.color}22`, padding: '4px 10px', borderRadius: 20 }}>
-                            {(hero as any).featuredTag || "New Title"}
+                            {(hero as any).featuredTag || 'New Title'}
                           </span>
                           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}> | {hero.category}</span>
                         </div>
@@ -213,12 +175,12 @@ export default function GamingHub() {
             </div>
           )}
 
-          {/* ── 2. NEWLY ADDED GAMES LIST ── */}
+          {/* ── GAME LIST ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 15, marginBottom: 40 }}>
             <h3 style={{ fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'rgba(255,255,255,0.4)', margin: '0 0 10px' }}>
               Explore the metaverse
             </h3>
-            
+
             {filteredGames.length > 0 ? filteredGames.map(game => (
               <div
                 key={game.id}
@@ -228,25 +190,15 @@ export default function GamingHub() {
                   padding: '16px 20px', background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)',
                   borderRadius: 20, cursor: 'pointer', transition: 'all 0.25s ease', position: 'relative', overflow: 'hidden'
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = `${game.color}55`; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.015)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'; e.currentTarget.style.transform = 'translateY(0)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = `${game.color}55`; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.015)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'; e.currentTarget.style.transform = 'translateY(0)'; }}
               >
-                {/* Visual accent: game color glow */}
-                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: game.color, opacity: 0.6 }}/>
-                
-                {/* Visual accent: subtle repeating background emoji (hidden by default, shown on hover) */}
-                <div className="hover-emoji" style={{ position: 'absolute', right: -10, top: '10%', fontSize: 50, opacity: 0, transition: 'all 0.4s ease' }}>
+                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: game.color, opacity: 0.6 }} />
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, filter: `drop-shadow(0 4px 10px ${game.color}44)` }}>
                   {game.emoji}
                 </div>
 
-                {/* Left side: Icon & Title */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 34, filter: `drop-shadow(0 4px 10px ${game.color}44)`
-                }}>
-                  {game.emoji}
-                </div>
-                
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>
@@ -259,12 +211,9 @@ export default function GamingHub() {
                   </p>
                 </div>
 
-                {/* Info and Launch button */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', paddingRight: 20 }}>
                   <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>{game.plays} PLAYS</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: '#fbbf24', fontSize: 12 }}>⭐ {game.rating}</span>
-                  </div>
+                  <span style={{ color: '#fbbf24', fontSize: 12 }}>⭐ {game.rating}</span>
                 </div>
 
                 <div style={{
@@ -273,17 +222,16 @@ export default function GamingHub() {
                 }}>
                   PLAY NOW
                 </div>
-                
               </div>
             )) : (
               <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', padding: '60px 0', fontSize: 13, border: '1px solid rgba(255,255,255,0.03)', borderRadius: 12 }}>
-                 No {activeTab} games in library
+                No {activeTab} games in library
               </div>
             )}
           </div>
         </div>
 
-        {/* ── ARCADE STATUS FOOTER ───────────────────────── */}
+        {/* ── FOOTER ── */}
         <div style={{
           padding: '15px 40px', borderTop: '1px solid rgba(255,255,255,0.06)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -300,17 +248,4 @@ export default function GamingHub() {
       </div>
     </div>
   );
-}
-
-// Ensure the hover-emoji style is loaded (e.g., in a global CSS file or within the component)
-// Within this specific setup, we'll inline a minimal global style for simplicity:
-if (typeof document !== 'undefined') {
-  const style = document.createElement('style');
-  style.innerHTML = `
-    [onClick]:hover .hover-emoji {
-      opacity: 0.1 !important;
-      transform: translateX(-15px);
-    }
-  `;
-  document.head.appendChild(style);
 }

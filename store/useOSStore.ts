@@ -5,7 +5,6 @@
 
 import { create } from 'zustand';
 import { DEFAULTS } from '@/config/themes';
-const { openApp, addNotification } = useOSStore();
 
 // A "Window" is one open app instance on screen
 export interface OSWindow {
@@ -99,12 +98,7 @@ export const useOSStore = create<OSState>((set, get) => ({
   terminalLines: [
     { type: 'sys', text: 'Troy Terminal v3.2.1 — type "help" for commands' },
   ],
-  aiMessages: [
-    { role: 'ai', text: 'I\'m Troy AI. How can I assist you today?' },
-    { role: 'ai', text: 'Do you need help with homework?' },
-    { role: 'ai', text: 'Powered by Claude API' },
-    { role: 'ai', text: 'hola como estas brochacho' },
-  ],
+  aiMessages: [],
   notesContent: '# Welcome to Notes\n\nStart typing your thoughts here...',
   browserUrl: '',
 

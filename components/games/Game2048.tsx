@@ -1,6 +1,7 @@
+// components/games/Game2048.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 type Grid = number[][];
 
@@ -55,12 +56,13 @@ export default function Game2048() {
   const [best, setBest]   = useState(0);
   const [won, setWon]     = useState(false);
 
+  const dragStart = useRef<{ x: number; y: number } | null>(null);
+
   const move = useCallback((dir: 'left' | 'right' | 'up' | 'down') => {
     setGrid(prev => {
       let g = prev.map(r => [...r]);
       let totalGained = 0;
 
-      // Rotate grid so we always slide left, then rotate back
       const rotateRight = (m: Grid): Grid => m[0].map((_, i) => m.map(r => r[i]).reverse());
       const rotateLeft  = (m: Grid): Grid => m[0].map((_, i) => m.map(r => r[r.length - 1 - i]));
 
@@ -92,6 +94,7 @@ export default function Game2048() {
     });
   }, []);
 
+  // ── Keyboard ────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const map: Record<string, 'left' | 'right' | 'up' | 'down'> = {
@@ -102,6 +105,29 @@ export default function Game2048() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [move]);
+
+  // ── Mouse swipe handlers ─────────────────────────────
+  const onMouseDown = (e: React.MouseEvent) => {
+    dragStart.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const onMouseUp = (e: React.MouseEvent) => {
+    if (!dragStart.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    dragStart.current = null;
+
+    const minSwipe = 30;
+    if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      move(dx > 0 ? 'right' : 'left');
+    } else {
+      move(dy > 0 ? 'down' : 'up');
+    }
+  };
+
+  const onMouseLeave = () => { dragStart.current = null; };
 
   const reset = () => {
     setGrid(addTile(addTile(newGrid())));
@@ -125,8 +151,28 @@ export default function Game2048() {
         </button>
       </div>
 
-      {/* Board */}
-      <div style={{ background: '#bbada0', borderRadius: 12, padding: 8, display: 'grid', gridTemplateColumns: 'repeat(4, 72px)', gap: 8, position: 'relative' }}>
+      {/* Hint */}
+      <div style={{ fontSize: 10, color: '#a09080', letterSpacing: '0.05em' }}>
+        Arrow keys · click &amp; drag to swipe
+      </div>
+
+      {/* Board — swipeable */}
+      <div
+        onMouseDown={onMouseDown}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseLeave}
+        style={{
+          background: '#bbada0',
+          borderRadius: 12,
+          padding: 8,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 72px)',
+          gap: 8,
+          position: 'relative',
+          cursor: 'grab',
+          userSelect: 'none',
+        }}
+      >
         {grid.flat().map((val, i) => {
           const tc = TILE_COLORS[val] || { bg: '#3c3a32', fg: '#fff' };
           return (
@@ -154,7 +200,7 @@ export default function Game2048() {
         )}
       </div>
 
-      {/* Controls */}
+      {/* Arrow button controls */}
       <div style={{ display: 'grid', gridTemplateColumns: '44px 44px 44px', gridTemplateRows: '44px 44px', gap: 4 }}>
         {[
           { l: '▲', col: 2, row: 1, d: 'up'    as const },
@@ -168,3 +214,6 @@ export default function Game2048() {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
