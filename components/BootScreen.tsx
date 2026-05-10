@@ -1,7 +1,6 @@
-// components/BootScreen.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Props { onComplete: () => void; }
 
@@ -16,13 +15,15 @@ const BOOT_STEPS = [
   { message: 'Almost There...', weight: 5 },
 ];
 
-// Using the Geist font variable from your Layout
 const GEIST_FONT = 'var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Inter", sans-serif';
 
 export default function BootScreen({ onComplete }: Props) {
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState('Starting up...');
   const [isExiting, setIsExiting] = useState(false);
+  
+  // Use a ref to check if the boot sequence was bypassed
+  const bypassedRef = useRef(false);
 
   useEffect(() => {
     let currentProgress = 0;
@@ -30,13 +31,13 @@ export default function BootScreen({ onComplete }: Props) {
 
     const processBoot = async () => {
       for (const step of BOOT_STEPS) {
-        if (!isRunning) break;
+        if (!isRunning || bypassedRef.current) break;
         setMessage(step.message);
         
         const stepTarget = (BOOT_STEPS.indexOf(step) + 1) * (100 / BOOT_STEPS.length);
         const targetForStep = Math.min(stepTarget, 99);
         
-        while (currentProgress < targetForStep) {
+        while (currentProgress < targetForStep && !bypassedRef.current) {
           const chunk = Math.random() * 4; 
           currentProgress = Math.min(currentProgress + chunk, targetForStep);
           setProgress(currentProgress);
@@ -45,13 +46,13 @@ export default function BootScreen({ onComplete }: Props) {
           await new Promise(r => setTimeout(r, delay));
         }
 
-        if (Math.floor(currentProgress) >= 99) {
+        if (Math.floor(currentProgress) >= 99 && !bypassedRef.current) {
           setMessage('Finalizing system setup...');
           await new Promise(r => setTimeout(r, 5000)); 
         }
       }
 
-      if (isRunning) {
+      if (isRunning && !bypassedRef.current) {
         setProgress(100);
         setMessage('Troy OS Booted.');
         await new Promise(r => setTimeout(r, 800));
@@ -64,10 +65,46 @@ export default function BootScreen({ onComplete }: Props) {
     return () => { isRunning = false; };
   }, [onComplete]);
 
+  // ─── CHEAT CODE / BYPASS EVENT LISTENER ─────────────────
+  useEffect(() => {
+    const targetSequence = ['ArrowUp', 'ArrowDown', 'ArrowUp', 'ArrowDown'];
+    let pressedKeys: string[] = [];
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Keep track of only the last 4 keys pressed
+      pressedKeys.push(e.key);
+      if (pressedKeys.length > 4) {
+        pressedKeys.shift();
+      }
+
+      // Check if the input array matches the cheat code
+      const isMatch = pressedKeys.length === 4 && pressedKeys.every((key, i) => key === targetSequence[i]);
+
+      if (isMatch && !bypassedRef.current) {
+        bypassedRef.current = true;
+        
+        // Fast-track the UI states
+        setProgress(100);
+        setMessage('Bypassing sequence... Welcome, Admin.');
+        
+        // Immediately start the exit transition
+        setTimeout(() => {
+          setIsExiting(true);
+        }, 150);
+
+        // Tell parent components we are ready to load the Desktop
+        setTimeout(onComplete, 1350);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onComplete]);
+
   return (
     <div style={{
       position: 'absolute', inset: 0, 
-      background: '#020205', // Deeper black
+      background: '#020205', 
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', gap: 42, zIndex: 9999, overflow: 'hidden',
       fontFamily: GEIST_FONT, color: '#fff',
@@ -87,7 +124,7 @@ export default function BootScreen({ onComplete }: Props) {
         backgroundImage: `linear-gradient(rgba(59,130,246,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.1) 1px, transparent 1px)`,
         backgroundSize: '50px 50px', 
         animation: 'gridPulse 4s ease-in-out infinite',
-        filter: 'blur(1px)', // Softer grid
+        filter: 'blur(1px)', 
       }} />
 
       {/* Glow Effect behind logo */}
@@ -115,7 +152,7 @@ export default function BootScreen({ onComplete }: Props) {
           fontSize: 13, fontWeight: 800, letterSpacing: '0.8em', 
           color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase', 
           margin: '16px 0 0', animation: 'slowFloat 6s ease-in-out infinite',
-          paddingLeft: '0.8em' // Centers the text due to letter spacing
+          paddingLeft: '0.8em' 
         }}>OS</p>
       </div>
 
@@ -141,14 +178,14 @@ export default function BootScreen({ onComplete }: Props) {
           height: 8, 
           background: 'rgba(255,255,255,0.05)', 
           borderRadius: 20, 
-          padding: '2px', // Inner padding for "encased" bar look
+          padding: '2px', 
           border: '1px solid rgba(255,255,255,0.1)'
         }}>
           <div style={{
             height: '100%', width: `${progress}%`,
             background: 'linear-gradient(90deg, #3b82f6, #60a5fa)',
             borderRadius: 20,
-            transition: 'width 0.8s cubic-bezier(0.2, 1, 0.2, 1)', 
+            transition: bypassedRef.current ? 'width 0.15s ease-out' : 'width 0.8s cubic-bezier(0.2, 1, 0.2, 1)', 
             boxShadow: '0 0 20px rgba(59,130,246,0.6)',
           }} />
         </div>

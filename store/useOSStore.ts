@@ -1,49 +1,48 @@
 // store/useOSStore.ts
-// This file manages ALL the data for the OS.
-// Think of it as the OS's memory/brain.
-// Any component can read from or write to this store.
-
 import { create } from 'zustand';
 import { DEFAULTS } from '@/config/themes';
 
-// A "Window" is one open app instance on screen
 export interface OSWindow {
-  id: number;          // Unique ID for this window
-  appId: string;       // Which app is inside (e.g. 'browser', 'gaming')
-  title: string;       // Text shown in title bar
-  emoji: string;       // Icon in title bar
-  color: string;       // App accent color
-  x: number;           // Horizontal position on desktop (pixels from left)
-  y: number;           // Vertical position on desktop (pixels from top)
-  width: number;       // Window width in pixels
-  height: number;      // Window height in pixels
-  zIndex: number;      // Stack order — higher = in front
-  minimized: boolean;  // Is it hidden in taskbar?
-  maximized: boolean;  // Is it fullscreen?
-  isNew: boolean;      // Used to trigger open animation
+  id: number;
+  appId: string;
+  title: string;
+  emoji: string;
+  color: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex: number;
+  minimized: boolean;
+  maximized: boolean;
+  isNew: boolean;
 }
 
-// A "Notification" is a popup message at bottom-right
 export interface Notification {
   id: number;
   message: string;
   icon: string;
 }
 
-// The complete shape of our OS state
+export interface IconPosition {
+  appId: string;
+  x: number;
+  y: number;
+}
+
 interface OSState {
   // ─── WINDOWS ──────────────────────────────────────
   windows: OSWindow[];
-  activeWindowId: number | null;   // Which window has focus
-  nextWindowId: number;            // Counter for unique IDs
-  nextZIndex: number;              // Counter for stack order
+  activeWindowId: number | null;
+  nextWindowId: number;
+  nextZIndex: number;
 
   // ─── DESKTOP ──────────────────────────────────────
-  wallpaperIndex: number;          // Which wallpaper is active
-  accentColor: string;             // Active accent color (hex)
-  accentName: string;              // Active accent name (text)
-  launcherOpen: boolean;           // Is app launcher visible?
-  currentTime: Date;               // Clock
+  wallpaperIndex: number;
+  accentColor: string;
+  accentName: string;
+  launcherOpen: boolean;
+  currentTime: Date;
 
   // ─── NOTIFICATIONS ────────────────────────────────
   notifications: Notification[];
@@ -55,7 +54,10 @@ interface OSState {
   notesContent: string;
   browserUrl: string;
 
-  // ─── ACTIONS (functions that change the state) ─────
+  // ─── ICON POSITIONS ───────────────────────────────
+  iconPositions: IconPosition[];
+
+  // ─── ACTIONS ──────────────────────────────────────
   openApp: (appId: string, title: string, emoji: string, color: string, w: number, h: number) => void;
   closeWindow: (id: number) => void;
   minimizeWindow: (id: number) => void;
@@ -77,6 +79,9 @@ interface OSState {
   addAIMessage: (role: 'user' | 'ai', text: string) => void;
   setNotesContent: (content: string) => void;
   setBrowserUrl: (url: string) => void;
+
+  setIconPosition: (appId: string, x: number, y: number) => void;
+  resetIconPositions: () => void;
 }
 
 export const useOSStore = create<OSState>((set, get) => ({
@@ -102,35 +107,22 @@ export const useOSStore = create<OSState>((set, get) => ({
   notesContent: '# Welcome to Notes\n\nStart typing your thoughts here...',
   browserUrl: '',
 
+  iconPositions: [],
+
   // ─── WINDOW ACTIONS ────────────────────────────────
 
   openApp: (appId, title, emoji, color, w, h) => {
     const { windows, nextWindowId, nextZIndex } = get();
-
-    // If app is already open, just focus it instead of opening a new one
     const existing = windows.find(win => win.appId === appId && !win.minimized);
-    if (existing) {
-      get().focusWindow(existing.id);
-      return;
-    }
+    if (existing) { get().focusWindow(existing.id); return; }
 
-    // Offset each new window slightly so they don't stack exactly on top
     const offset = windows.filter(win => !win.minimized).length * 24;
-
     const newWindow: OSWindow = {
-      id: nextWindowId,
-      appId,
-      title,
-      emoji,
-      color,
-      x: Math.min(80 + offset, 300),   // Don't go too far right
-      y: Math.min(50 + offset, 200),   // Don't go too far down
-      width: w,
-      height: h,
-      zIndex: nextZIndex,
-      minimized: false,
-      maximized: false,
-      isNew: true,                      // Triggers open animation
+      id: nextWindowId, appId, title, emoji, color,
+      x: Math.min(80 + offset, 300),
+      y: Math.min(50 + offset, 200),
+      width: w, height: h, zIndex: nextZIndex,
+      minimized: false, maximized: false, isNew: true,
     };
 
     set(state => ({
@@ -138,10 +130,9 @@ export const useOSStore = create<OSState>((set, get) => ({
       nextWindowId: state.nextWindowId + 1,
       nextZIndex: state.nextZIndex + 1,
       activeWindowId: nextWindowId,
-      launcherOpen: false,             // Close launcher when app opens
+      launcherOpen: false,
     }));
 
-    // Remove the "isNew" flag after animation completes (250ms)
     setTimeout(() => {
       set(state => ({
         windows: state.windows.map(win =>
@@ -164,10 +155,9 @@ export const useOSStore = create<OSState>((set, get) => ({
   })),
 
   maximizeWindow: (id) => set(state => ({
-    windows: state.windows.map(win => {
-      if (win.id !== id) return win;
-      return { ...win, maximized: !win.maximized };
-    }),
+    windows: state.windows.map(win =>
+      win.id !== id ? win : { ...win, maximized: !win.maximized }
+    ),
   })),
 
   focusWindow: (id) => set(state => ({
@@ -181,15 +171,11 @@ export const useOSStore = create<OSState>((set, get) => ({
   })),
 
   moveWindow: (id, x, y) => set(state => ({
-    windows: state.windows.map(win =>
-      win.id === id ? { ...win, x, y } : win
-    ),
+    windows: state.windows.map(win => win.id === id ? { ...win, x, y } : win),
   })),
 
   resizeWindow: (id, w, h) => set(state => ({
-    windows: state.windows.map(win =>
-      win.id === id ? { ...win, width: w, height: h } : win
-    ),
+    windows: state.windows.map(win => win.id === id ? { ...win, width: w, height: h } : win),
   })),
 
   // ─── DESKTOP ACTIONS ───────────────────────────────
@@ -207,7 +193,6 @@ export const useOSStore = create<OSState>((set, get) => ({
       notifications: [...state.notifications, { id, message, icon }],
       nextNotifId: state.nextNotifId + 1,
     }));
-    // Auto-remove after 3.5 seconds
     setTimeout(() => get().removeNotification(id), 3500);
   },
 
@@ -229,4 +214,20 @@ export const useOSStore = create<OSState>((set, get) => ({
 
   setNotesContent: (content) => set({ notesContent: content }),
   setBrowserUrl: (url) => set({ browserUrl: url }),
+
+  // ─── ICON POSITION ACTIONS ─────────────────────────
+
+  setIconPosition: (appId, x, y) => set(state => {
+    const exists = state.iconPositions.find(p => p.appId === appId);
+    if (exists) {
+      return {
+        iconPositions: state.iconPositions.map(p =>
+          p.appId === appId ? { ...p, x, y } : p
+        ),
+      };
+    }
+    return { iconPositions: [...state.iconPositions, { appId, x, y }] };
+  }),
+
+  resetIconPositions: () => set({ iconPositions: [] }),
 }));
