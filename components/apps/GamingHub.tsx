@@ -1,4 +1,3 @@
-// components/apps/GamingHub.tsx
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -34,57 +33,95 @@ export default function GamingHub() {
     <div style={{
       display: 'flex',
       height: '100%',
-      background: '#0a0c10',
+      background: '#07080b',
       color: '#fff',
       fontFamily: GEIST_FONT,
       overflow: 'hidden',
     }}>
       <style>{`
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
-        @keyframes subtlePulse { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+        
+        /* Modernized Interactive Hover States */
+        .nav-button {
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .nav-button:hover {
+          color: #fff !important;
+          opacity: 1 !important;
+          background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .hero-banner {
+          transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .hero-banner:hover {
+          transform: translateY(-3px) scale(1.005);
+        }
+
+        .list-game-row {
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          background: rgba(255,255,255,0.01);
+          border: 1px solid rgba(255,255,255,0.03);
+        }
+        .list-game-row:hover {
+          background: rgba(255,255,255,0.03) !important;
+          border-color: var(--row-accent-color) !important;
+          transform: translateY(-1px);
+        }
+        .list-game-row:active {
+          transform: scale(0.99);
+        }
       `}</style>
 
-      {/* ── NARROW LEFT NAV RAIL ─────────────────────── */}
+      {/* Side Navigation Rail */}
       <div style={{
-        width: 80,
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        width: 76,
+        borderRight: '1px solid rgba(255,255,255,0.04)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '30px 0',
-        gap: 20,
-        background: '#0d0f14',
+        padding: '24px 0',
+        gap: 16,
+        background: '#090a0e',
       }}>
-        <span style={{ fontSize: 24, filter: 'drop-shadow(0 0 10px #8b5cf666)' }}>🎮</span>
+        <span style={{ fontSize: 20, filter: 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.4))', marginBottom: 12 }}>🎮</span>
 
-        {navCategories.map(cat => (
-          <button
-            key={cat}
-            onClick={() => setActiveTab(cat)}
-            style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
-              background: 'transparent', border: 'none', color: activeTab === cat ? '#fff' : 'rgba(255,255,255,0.4)',
-              cursor: 'pointer', outline: 'none', transition: 'all 0.3s ease', opacity: activeTab === cat ? 1 : 0.7,
-              width: '100%', padding: '10px 0', position: 'relative',
-            }}
-          >
-            <div style={{ fontSize: 20, filter: activeTab === cat ? 'drop-shadow(0 0 8px rgba(255,255,255,0.3))' : 'none' }}>
-              {categoryIcons[cat] || '📦'}
-            </div>
-            <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {cat}
-            </span>
-            {activeTab === cat && (
-              <div style={{ position: 'absolute', right: -1, top: '20%', height: '60%', width: 2, background: '#8b5cf6', borderRadius: 2 }} />
-            )}
-          </button>
-        ))}
+        {navCategories.map(cat => {
+          const isSelected = activeTab === cat;
+          return (
+            <button
+              key={cat}
+              onClick={() => setActiveTab(cat)}
+              className="nav-button"
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+                background: 'transparent', border: 'none', color: isSelected ? '#fff' : 'rgba(255,255,255,0.3)',
+                cursor: 'pointer', outline: 'none', opacity: isSelected ? 1 : 0.6,
+                width: '100%', padding: '12px 0', position: 'relative',
+              }}
+            >
+              <div style={{ fontSize: 18, filter: isSelected ? 'drop-shadow(0 0 6px rgba(255,255,255,0.25))' : 'none' }}>
+                {categoryIcons[cat] || '📦'}
+              </div>
+              <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {cat}
+              </span>
+              {isSelected && (
+                <div style={{ 
+                  position: 'absolute', right: -1, top: '25%', height: '50%', width: 2, 
+                  background: '#8b5cf6', borderRadius: 99,
+                  boxShadow: '0 0 8px #8b5cf6'
+                }} />
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* ── MAIN CONTENT AREA ─────────────────────────── */}
+      {/* Main Content Viewport */}
       <div style={{
         flex: 1,
         display: 'flex',
@@ -92,81 +129,81 @@ export default function GamingHub() {
         overflow: 'hidden',
         position: 'relative'
       }}>
+        {/* Abstract Background Tech Grid overlay */}
         <div style={{
-          position: 'absolute', inset: 0, opacity: 0.015,
+          position: 'absolute', inset: 0, opacity: 0.012, pointerEvents: 'none',
           backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
+          backgroundSize: '32px 32px',
         }} />
 
-        {/* ── MAIN HEADER ── */}
+        {/* Global Application Header */}
         <div style={{
-          padding: '30px 40px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+          padding: '24px 32px', borderBottom: '1px solid rgba(255,255,255,0.04)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 5
         }}>
           <div>
-            <p style={{ fontSize: 11, color: '#a78bfa', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.35em', margin: 0 }}>
-              Troy Arcade v2.5
+            <p style={{ fontSize: 9, color: '#a78bfa', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.3em', margin: 0 }}>
+              NEXUS ARCADE v2.5
             </p>
-            <h1 style={{ fontSize: 28, fontWeight: 800, margin: '6px 0 0', letterSpacing: '-0.04em', color: '#fff' }}>
-              Explore the Metaverse
+            <h1 style={{ fontSize: 24, fontWeight: 800, margin: '4px 0 0', letterSpacing: '-0.03em', color: '#fff' }}>
+              Explore Arcade Universe
             </h1>
           </div>
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', borderRadius: 30,
-            background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)'
+            display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 20,
+            background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.15)'
           }}>
-            <span style={{ fontSize: 16 }}>🌟</span>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>TROY Points</span>
-            <span style={{ fontSize: 16, color: '#fff', fontWeight: 800, letterSpacing: '-0.02em' }}>12,450 XP</span>
+            <span style={{ fontSize: 13 }}>🌟</span>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>XP LEVEL</span>
+            <span style={{ fontSize: 12, color: '#fff', fontWeight: 800, letterSpacing: '-0.01em' }}>12,450 pts</span>
           </div>
         </div>
 
-        {/* ── SCROLLABLE GAME VIEW ── */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '40px', position: 'relative', zIndex: 4 }}>
+        {/* Main Content Scroll container */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '32px', position: 'relative', zIndex: 4 }}>
 
-          {/* ── HERO CAROUSEL ── */}
+          {/* Hero Carousel Banner */}
           {(activeTab === 'All' || activeTab === 'Featured') && featuredGames.length > 0 && (
-            <div style={{ marginBottom: 40 }}>
-              <div style={{ display: 'flex', gap: 24, overflowX: 'auto', paddingBottom: 15 }}>
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 10 }}>
                 {featuredGames.slice(0, 3).map((hero, i) => (
                   <div
                     key={hero.id}
                     onClick={() => launchGame(hero)}
+                    className="hero-banner"
                     style={{
-                      flex: '0 0 auto', width: i === 0 ? 560 : 420, height: 260, borderRadius: 24,
+                      flex: '0 0 auto', width: i === 0 ? 500 : 380, height: 220, borderRadius: 16,
                       position: 'relative', overflow: 'hidden', cursor: 'pointer',
-                      border: i === 0 ? `2px solid ${hero.color}` : '1px solid rgba(255,255,255,0.1)',
-                      boxShadow: i === 0 ? `0 15px 40px -5px ${hero.color}33, 0 10px 20px -10px ${hero.color}22` : '0 10px 30px rgba(0,0,0,0.5)',
-                      transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                      border: `1px solid ${i === 0 ? hero.color : 'rgba(255,255,255,0.06)'}`,
+                      boxShadow: i === 0 
+                        ? `0 16px 36px -8px ${hero.color}25, inset 0 1px 0 rgba(255,255,255,0.1)` 
+                        : '0 8px 24px rgba(0,0,0,0.4)',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 20px 50px -5px ${hero.color}44`; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = i === 0 ? `0 15px 40px -5px ${hero.color}33` : '0 10px 30px rgba(0,0,0,0.5)'; }}
                   >
-                    <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, ${hero.color} 0%, ${hero.color}11 100%)`, opacity: 0.15 }} />
-                    <div style={{ position: 'absolute', right: -20, bottom: -40, fontSize: 180, opacity: 0.07, filter: `drop-shadow(0 0 20px ${hero.color})` }}>
+                    <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, ${hero.color} 0%, ${hero.color}05 100%)`, opacity: 0.12 }} />
+                    <div style={{ position: 'absolute', right: -15, bottom: -30, fontSize: 150, opacity: 0.06, filter: `drop-shadow(0 0 16px ${hero.color})` }}>
                       {hero.emoji}
                     </div>
-                    <div style={{ position: 'relative', zIndex: 3, padding: '30px 40px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: '65%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em', color: hero.color, background: `${hero.color}22`, padding: '4px 10px', borderRadius: 20 }}>
-                            {(hero as any).featuredTag || 'New Title'}
+                    <div style={{ position: 'relative', zIndex: 3, padding: '24px 30px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: '75%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#fff', background: hero.color, padding: '2px 8px', borderRadius: 99 }}>
+                            {(hero as any).featuredTag || 'FEATURED'}
                           </span>
-                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}> | {hero.category}</span>
+                          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>{hero.category}</span>
                         </div>
-                        <h2 style={{ fontSize: 26, fontWeight: 900, margin: '5px 0 0', letterSpacing: '-0.04em', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                        <h2 style={{ fontSize: 20, fontWeight: 800, margin: '4px 0 0', letterSpacing: '-0.02em', color: '#fff' }}>
                           {hero.name}
                         </h2>
-                        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5, margin: 0 }}>
+                        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.4, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                           {hero.description}
                         </p>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 20, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ color: '#fbbf24', fontSize: 14 }}>⭐ {hero.rating}</div>
-                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>({hero.plays} plays)</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ color: '#fbbf24', fontSize: 11 }}>★ {hero.rating}</div>
                         </div>
-                        <div style={{ fontSize: 11, color: hero.color, fontWeight: 800 }}>PRESS START →</div>
+                        <div style={{ fontSize: 9, color: hero.color, fontWeight: 800, letterSpacing: '0.05em' }}>LAUNCH MACHINE →</div>
                       </div>
                     </div>
                   </div>
@@ -175,74 +212,74 @@ export default function GamingHub() {
             </div>
           )}
 
-          {/* ── GAME LIST ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 15, marginBottom: 40 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'rgba(255,255,255,0.4)', margin: '0 0 10px' }}>
-              Explore the metaverse
+          {/* List Games Catalog Section */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+            <h3 style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'rgba(255,255,255,0.3)', margin: '0 0 4px' }}>
+              All Systems Libraries
             </h3>
 
             {filteredGames.length > 0 ? filteredGames.map(game => (
               <div
                 key={game.id}
                 onClick={() => launchGame(game)}
+                className="list-game-row"
                 style={{
-                  display: 'grid', gridTemplateColumns: '70px 1fr auto auto', alignItems: 'center', gap: 20,
-                  padding: '16px 20px', background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)',
-                  borderRadius: 20, cursor: 'pointer', transition: 'all 0.25s ease', position: 'relative', overflow: 'hidden'
+                  display: 'grid', gridTemplateColumns: '50px 1fr auto auto', alignItems: 'center', gap: 16,
+                  padding: '12px 16px',
+                  borderRadius: 12, cursor: 'pointer', position: 'relative', overflow: 'hidden',
+                  ['--row-accent-color' as any]: `${game.color}33`
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = `${game.color}55`; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.015)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'; e.currentTarget.style.transform = 'translateY(0)'; }}
               >
-                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: game.color, opacity: 0.6 }} />
+                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: game.color, opacity: 0.5 }} />
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, filter: `drop-shadow(0 4px 10px ${game.color}44)` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, filter: `drop-shadow(0 4px 8px ${game.color}33)` }}>
                   {game.emoji}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>
                       {game.name}
                     </h4>
-                    {game.featured && <span style={{ fontSize: 8, color: '#f59e0b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>FEATURED</span>}
+                    {game.featured && <span style={{ fontSize: 7, color: '#fbbf24', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>FEATURED</span>}
                   </div>
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', margin: 0, lineHeight: 1.4, maxWidth: '90%' }}>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', margin: 0, lineHeight: 1.3, maxWidth: '95%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {game.description}
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', paddingRight: 20 }}>
-                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>{game.plays} PLAYS</span>
-                  <span style={{ color: '#fbbf24', fontSize: 12 }}>⭐ {game.rating}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end', paddingRight: 16 }}>
+                  <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>{game.plays} PLAYS</span>
+                  <span style={{ color: '#fbbf24', fontSize: 11 }}>★ {game.rating}</span>
                 </div>
 
                 <div style={{
-                  padding: '12px 18px', borderRadius: 30, background: `${game.color}22`, border: `1px solid ${game.color}33`,
-                  color: game.color, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em'
+                  padding: '8px 14px', borderRadius: 99, background: `${game.color}15`, border: `1px solid ${game.color}25`,
+                  color: game.color, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em'
                 }}>
-                  PLAY NOW
+                  PLAY
                 </div>
               </div>
             )) : (
-              <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', padding: '60px 0', fontSize: 13, border: '1px solid rgba(255,255,255,0.03)', borderRadius: 12 }}>
-                No {activeTab} games in library
+              <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.25)', padding: '48px 0', fontSize: 11, border: '1px dashed rgba(255,255,255,0.04)', borderRadius: 12 }}>
+                Empty dynamic directory
               </div>
             )}
           </div>
         </div>
 
-        {/* ── FOOTER ── */}
+        {/* Global Footer Console metrics */}
         <div style={{
-          padding: '15px 40px', borderTop: '1px solid rgba(255,255,255,0.06)',
+          padding: '12px 32px', borderTop: '1px solid rgba(255,255,255,0.04)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          background: '#0d0f14',
+          background: '#090a0e',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 10px #22c55e' }} />
-            <span style={{ fontSize: 10, color: '#fff', fontWeight: 700 }}>TROY CLOUD v2.5 [ ONLINE ]</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }} />
+            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>NEXUS NODE [ ACTIVE ]</span>
           </div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>
-            Streaming :: {GAMES.length} titles / All Systems Nominal ::
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', fontWeight: 600 }}>
+            Streaming :: {GAMES.length} online configurations
           </div>
         </div>
       </div>

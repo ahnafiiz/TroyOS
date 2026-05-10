@@ -17,7 +17,8 @@ const COMMANDS: Record<string, () => string> = {
   whoami     — current user
   date       — current date and time
   uptime     — system uptime
-  neofetch   — system information
+  system   — system information
+  owner      — owner of Troy OS
   clear      — clear the terminal`,
 
   ls: () => `📁 Documents    📁 Downloads
@@ -46,6 +47,8 @@ Load average: 0.42  0.38  0.35`,
   GPU:     Troy AMD RTX 670 Ti
   Memory:  16 GiB / 128 GiB
   Uptime:  4d 7h 23m`,
+
+  owner: () => `Why the fuh do you wanna know boy`
 };
 
 export default function Terminal() {

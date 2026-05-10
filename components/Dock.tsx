@@ -1,4 +1,3 @@
-// components/Dock.tsx
 'use client';
 
 import { useOSStore } from '@/store/useOSStore';
@@ -16,55 +15,76 @@ export default function Dock() {
   return (
     <div style={{
       position: 'absolute',
-      bottom: 76, // Raised higher to float above the taskbar
+      bottom: 70, // Slightly consolidated layout floating height
       left: '50%',
       transform: 'translateX(-50%)',
       display: 'flex',
-      gap: 10,
-      padding: '10px',
-      background: 'rgba(15, 18, 25, 0.7)',
-      backdropFilter: 'blur(20px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-      border: '1px solid rgba(255,255,255,0.1)',
-      borderRadius: 24,
+      alignItems: 'center',
+      gap: 8,
+      padding: '8px',
+      background: 'rgba(10, 12, 18, 0.45)',
+      backdropFilter: 'blur(32px) saturate(190%)',
+      WebkitBackdropFilter: 'blur(32px) saturate(190%)',
+      border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: 22,
       zIndex: 100,
-      boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
+      boxShadow: '0 24px 64px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.1)',
     }}>
       <style>{`
-        .dock-item { transition: all 0.3s cubic-bezier(0.2, 1, 0.2, 1); }
-        .dock-item:hover { transform: translateY(-10px) scale(1.2); background: rgba(255,255,255,0.1) !important; }
+        .dock-item { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .dock-item:hover { 
+          transform: translateY(-8px) scale(1.12); 
+          background: rgba(255,255,255,0.08) !important;
+          border-color: rgba(255,255,255,0.12) !important;
+        }
         .dock-item:active { transform: translateY(-2px) scale(1.0); }
       `}</style>
 
-      {dockApps.map(app => (
-        <button
-          key={app.id}
-          className="dock-item"
-          onClick={() => openApp(app.id, app.name, app.emoji, app.color, app.defaultWidth, app.defaultHeight)}
-          style={{
-            width: 48, height: 48,
-            borderRadius: 14,
-            background: 'rgba(255,255,255,0.03)',
-            border: 'none',
-            fontSize: 26,
-            cursor: 'pointer',
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          {app.emoji}
-          {isOpen(app.id) && (
-            <div style={{
-              position: 'absolute',
-              bottom: 4, width: 4, height: 4,
-              borderRadius: '50%',
-              background: accentColor,
-              boxShadow: `0 0 8px ${accentColor}`
+      {dockApps.map((app, idx) => (
+        <div key={app.id} style={{ display: 'flex', alignItems: 'center' }}>
+          {/* Subtle elegant structural separator after custom layout indexes if needed */}
+          {idx === 2 && (
+            <div style={{ 
+              width: 1, 
+              height: 28, 
+              background: 'rgba(255,255,255,0.08)', 
+              margin: '0 4px',
+              borderRadius: 1 
             }} />
           )}
-        </button>
+          
+          <button
+            className="dock-item"
+            onClick={() => openApp(app.id, app.name, app.emoji, app.color, app.defaultWidth, app.defaultHeight)}
+            style={{
+              width: 44, 
+              height: 44,
+              borderRadius: 12,
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.03)',
+              fontSize: 22,
+              cursor: 'pointer',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}
+          >
+            {app.emoji}
+            {isOpen(app.id) && (
+              <div style={{
+                position: 'absolute',
+                bottom: 3, 
+                width: 3, 
+                height: 3,
+                borderRadius: '50%',
+                background: accentColor,
+                boxShadow: `0 0 6px ${accentColor}`
+              }} />
+            )}
+          </button>
+        </div>
       ))}
     </div>
   );

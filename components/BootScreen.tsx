@@ -21,8 +21,6 @@ export default function BootScreen({ onComplete }: Props) {
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState('Starting up...');
   const [isExiting, setIsExiting] = useState(false);
-  
-  // Use a ref to check if the boot sequence was bypassed
   const bypassedRef = useRef(false);
 
   useEffect(() => {
@@ -38,26 +36,26 @@ export default function BootScreen({ onComplete }: Props) {
         const targetForStep = Math.min(stepTarget, 99);
         
         while (currentProgress < targetForStep && !bypassedRef.current) {
-          const chunk = Math.random() * 4; 
+          const chunk = Math.random() * 5; 
           currentProgress = Math.min(currentProgress + chunk, targetForStep);
           setProgress(currentProgress);
           
-          const delay = Math.random() * (150 * step.weight) + 30; 
+          const delay = Math.random() * (120 * step.weight) + 20; 
           await new Promise(r => setTimeout(r, delay));
         }
 
         if (Math.floor(currentProgress) >= 99 && !bypassedRef.current) {
           setMessage('Finalizing system setup...');
-          await new Promise(r => setTimeout(r, 5000)); 
+          await new Promise(r => setTimeout(r, 800)); 
         }
       }
 
       if (isRunning && !bypassedRef.current) {
         setProgress(100);
         setMessage('Troy OS Booted.');
-        await new Promise(r => setTimeout(r, 800));
+        await new Promise(r => setTimeout(r, 500));
         setIsExiting(true);
-        setTimeout(onComplete, 1200);
+        setTimeout(onComplete, 1000);
       }
     };
 
@@ -65,35 +63,22 @@ export default function BootScreen({ onComplete }: Props) {
     return () => { isRunning = false; };
   }, [onComplete]);
 
-  // ─── CHEAT CODE / BYPASS EVENT LISTENER ─────────────────
   useEffect(() => {
     const targetSequence = ['ArrowUp', 'ArrowDown', 'ArrowUp', 'ArrowDown'];
     let pressedKeys: string[] = [];
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Keep track of only the last 4 keys pressed
       pressedKeys.push(e.key);
-      if (pressedKeys.length > 4) {
-        pressedKeys.shift();
-      }
+      if (pressedKeys.length > 4) pressedKeys.shift();
 
-      // Check if the input array matches the cheat code
       const isMatch = pressedKeys.length === 4 && pressedKeys.every((key, i) => key === targetSequence[i]);
 
       if (isMatch && !bypassedRef.current) {
         bypassedRef.current = true;
-        
-        // Fast-track the UI states
         setProgress(100);
-        setMessage('Bypassing sequence... Welcome, Admin.');
-        
-        // Immediately start the exit transition
-        setTimeout(() => {
-          setIsExiting(true);
-        }, 150);
-
-        // Tell parent components we are ready to load the Desktop
-        setTimeout(onComplete, 1350);
+        setMessage('Boot Sequence Bypassed');
+        setTimeout(() => setIsExiting(true), 150);
+        setTimeout(onComplete, 1150);
       }
     };
 
@@ -104,100 +89,91 @@ export default function BootScreen({ onComplete }: Props) {
   return (
     <div style={{
       position: 'absolute', inset: 0, 
-      background: '#020205', 
+      background: '#04040a', 
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', gap: 42, zIndex: 9999, overflow: 'hidden',
       fontFamily: GEIST_FONT, color: '#fff',
-      transition: 'opacity 1s ease-in-out, transform 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
+      transition: 'opacity 0.8s ease-in-out, transform 1s cubic-bezier(0.16, 1, 0.3, 1)',
       opacity: isExiting ? 0 : 1,
-      transform: isExiting ? 'scale(1.1) translateY(-20px)' : 'scale(1) translateY(0)',
+      transform: isExiting ? 'scale(1.05) translateY(-10px)' : 'scale(1) translateY(0)',
     }}>
       <style>{`
         @keyframes fastRotate { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
         @keyframes slowFloat { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-15px); } }
-        @keyframes gridPulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.5; } }
+        @keyframes gridPulse { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.35; } }
       `}</style>
 
-      {/* Grid with improved saturation */}
+      {/* Grid background */}
       <div style={{
         position: 'absolute', inset: 0,
-        backgroundImage: `linear-gradient(rgba(59,130,246,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.1) 1px, transparent 1px)`,
-        backgroundSize: '50px 50px', 
-        animation: 'gridPulse 4s ease-in-out infinite',
-        filter: 'blur(1px)', 
+        backgroundImage: 'linear-gradient(rgba(59,130,246,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.08) 1px, transparent 1px)',
+        backgroundSize: '40px 40px', 
+        animation: 'gridPulse 5s ease-in-out infinite',
+        pointerEvents: 'none',
       }} />
 
-      {/* Glow Effect behind logo */}
+      {/* Radial glow effect */}
       <div style={{
-        position: 'absolute', width: '300px', height: '300px',
-        background: 'rgba(59, 130, 246, 0.15)',
-        filter: 'blur(100px)',
-        borderRadius: '50%',
+        position: 'absolute', width: 400, height: 400,
+        background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(59,130,246,0) 70%)',
+        filter: 'blur(60px)',
+        pointerEvents: 'none',
         zIndex: 0
       }} />
 
-      {/* Logo Area */}
-      <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-        <div style={{ animation: 'slowFloat 6s ease-in-out infinite' }}>
-          <h1 style={{
-            fontSize: 92, fontWeight: 900, letterSpacing: '-0.06em',
-            background: 'linear-gradient(180deg, #ffffff 40%, #3b82f6 100%)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            margin: 0, lineHeight: 0.9, display: 'block', padding: '0 60px', 
-            animation: 'fastRotate 3.5s ease-in-out infinite',
-            filter: 'drop-shadow(0 0 20px rgba(59,130,246,0.3))'
-          }}>TROY</h1>
-        </div>
+      {/* Branding Header with side-to-side rotating animation */}
+      <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', animation: 'slowFloat 6s ease-in-out infinite' }}>
+        <h1 style={{
+          fontSize: 84, fontWeight: 900, letterSpacing: '-0.05em',
+          background: 'linear-gradient(180deg, #ffffff 40%, #3b82f6 100%)',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          margin: 0, lineHeight: 0.9, padding: '0 50px',
+          animation: 'fastRotate 3.5s ease-in-out infinite',
+          filter: 'drop-shadow(0 0 20px rgba(59,130,246,0.25))',
+          display: 'block'
+        }}>TROY</h1>
         <p style={{ 
-          fontSize: 13, fontWeight: 800, letterSpacing: '0.8em', 
-          color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase', 
-          margin: '16px 0 0', animation: 'slowFloat 6s ease-in-out infinite',
-          paddingLeft: '0.8em' 
+          fontSize: 11, fontWeight: 800, letterSpacing: '0.85em', 
+          color: 'rgba(255, 255, 255, 0.35)', textTransform: 'uppercase', 
+          margin: '16px 0 0', paddingLeft: '0.85em' 
         }}>OS</p>
       </div>
 
-      {/* Progress Bar & Percentage */}
-      <div style={{ width: 340, position: 'relative', zIndex: 1 }}>
-        <div style={{ 
-          display: 'flex', justifyContent: 'space-between', 
-          alignItems: 'center', marginBottom: 14, padding: '0 4px'
-        }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+      {/* Progress Section */}
+      <div style={{ width: '320px', display: 'flex', flexDirection: 'column', gap: 12, zIndex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             {message}
           </span>
-          <span style={{ 
-            fontSize: 16, fontWeight: 800, color: '#3b82f6', 
-            fontVariantNumeric: 'tabular-nums',
-            textShadow: '0 0 10px rgba(59,130,246,0.5)'
-          }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#3b82f6', fontVariantNumeric: 'tabular-nums', textShadow: '0 0 10px rgba(59,130,246,0.3)' }}>
             {Math.round(progress)}%
           </span>
         </div>
 
         <div style={{ 
-          height: 8, 
-          background: 'rgba(255,255,255,0.05)', 
+          width: '100%',
+          height: 12, 
+          background: 'rgba(255, 255, 255, 0.03)', 
           borderRadius: 20, 
-          padding: '2px', 
-          border: '1px solid rgba(255,255,255,0.1)'
+          padding: 2, 
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxSizing: 'border-box'
         }}>
           <div style={{
-            height: '100%', width: `${progress}%`,
+            height: '100%', 
+            width: `${progress}%`,
             background: 'linear-gradient(90deg, #3b82f6, #60a5fa)',
             borderRadius: 20,
-            transition: bypassedRef.current ? 'width 0.15s ease-out' : 'width 0.8s cubic-bezier(0.2, 1, 0.2, 1)', 
-            boxShadow: '0 0 20px rgba(59,130,246,0.6)',
+            transition: bypassedRef.current ? 'width 0.15s ease-out' : 'width 0.4s cubic-bezier(0.1, 0.8, 0.2, 1)', 
+            boxShadow: '0 0 14px rgba(59, 130, 246, 0.5)',
           }} />
         </div>
       </div>
 
-      {/* Versioning Footer */}
-      <div style={{ 
-        position: 'absolute', bottom: 40, textAlign: 'center', 
-        opacity: 0.3, letterSpacing: '0.15em', textTransform: 'uppercase'
-      }}>
-        <p style={{ fontSize: 10, fontWeight: 800, margin: 0 }}>TROY OS v2.0.1</p>
-        <p style={{ fontSize: 9, marginTop: 6, opacity: 0.5 }}>hi philip chicken</p>
+      {/* Footer system details */}
+      <div style={{ position: 'absolute', bottom: 40, textAlign: 'center', opacity: 0.3, letterSpacing: '0.15em' }}>
+        <p style={{ fontSize: 9, fontWeight: 800, margin: 0, color: '#fff' }}>TROY OS v2.5.0</p>
+        <p style={{ fontSize: 8, marginTop: 4, color: 'rgba(255,255,255,0.5)' }}>All modules synchronized</p>
       </div>
     </div>
   );

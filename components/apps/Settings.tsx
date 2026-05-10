@@ -1,4 +1,3 @@
-// components/apps/Settings.tsx
 'use client';
 
 import { useState, useRef } from 'react';
@@ -14,7 +13,26 @@ type CustomWP = {
 
 const customWallpaperStore: CustomWP[] = [];
 
-export default function Settings() {
+interface SettingsProps {
+  clockSettings?: {
+    type: 'hud' | 'glass' | 'retro' | 'minimal';
+    color: string;
+    glowColor: string;
+    fontFamily: string;
+    fontSize: number;
+    use24Hour: boolean;
+  };
+  setClockSettings?: React.Dispatch<React.SetStateAction<any>>;
+  dockPosition?: 'center' | 'left';
+  setDockPosition?: React.Dispatch<React.SetStateAction<'center' | 'left'>>;
+}
+
+export default function Settings({
+  clockSettings,
+  setClockSettings,
+  dockPosition = 'center',
+  setDockPosition,
+}: SettingsProps) {
   const {
     wallpaperIndex, accentColor, accentName,
     setWallpaper, setAccent, addNotification,
@@ -23,7 +41,10 @@ export default function Settings() {
 
   const [tab, setTab]             = useState<'wallpaper' | 'accents' | 'desktop' | 'about'>('wallpaper');
   const [customs, setCustoms]     = useState<CustomWP[]>([...customWallpaperStore]);
-  const [activeId, setActiveId]   = useState<string | null>(null);
+  const [activeId, setActiveId]   = useState<string | null>(() => {
+    const el = document.getElementById('nexus-custom-wallpaper-style');
+    return el ? el.getAttribute('data-active-id') : null;
+  });
   const [dragging, setDragging]   = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -41,6 +62,12 @@ export default function Settings() {
     if (el) el.remove();
     const vid = document.getElementById('nexus-video-wallpaper') as HTMLVideoElement | null;
     if (vid) { vid.pause(); vid.remove(); }
+    
+    // Set a flag on the background so inline styles know to activate
+    const bg = document.getElementById('nexus-desktop-bg');
+    if (bg) {
+      bg.removeAttribute('data-has-custom');
+    }
   };
 
   // ── APPLY CUSTOM WALLPAPER ──────────────────────────────────────
@@ -48,13 +75,20 @@ export default function Settings() {
     setActiveId(wp.id);
     clearCustomWallpaper();
 
+    // Signal Desktop.tsx to remove dynamic inline presets so class rules apply
+    const bg = document.getElementById('nexus-desktop-bg');
+    if (bg) {
+      bg.setAttribute('data-has-custom', 'true');
+    }
+
     if (wp.type === 'image') {
       const style = document.createElement('style');
       style.id = 'nexus-custom-wallpaper-style';
+      style.setAttribute('data-active-id', wp.id);
       style.textContent = `
         #nexus-desktop-bg {
           background-image: url('${wp.objectUrl}') !important;
-          background: none !important;
+          background-color: #000 !important;
           background-size: cover !important;
           background-position: center center !important;
           background-repeat: no-repeat !important;
@@ -65,6 +99,7 @@ export default function Settings() {
     } else {
       const style = document.createElement('style');
       style.id = 'nexus-custom-wallpaper-style';
+      style.setAttribute('data-active-id', wp.id);
       style.textContent = `
         #nexus-desktop-bg { opacity: 0 !important; }
         #nexus-video-wallpaper { display: block !important; }
@@ -147,15 +182,9 @@ export default function Settings() {
   const TABS = [
     { k: 'wallpaper' as const, l: 'Wallpaper',    e: '🖼️' },
     { k: 'accents'   as const, l: 'Accent Color', e: '🎨' },
-    { k: 'desktop'   as const, l: 'Desktop',      e: '🖥️' },
-    { k: 'about'     as const, l: 'About',         e: 'ℹ️' },
+    { k: 'desktop'   as const, l: 'Desktop UI',   e: '🖥️' },
+    { k: 'about'     as const, l: 'About',        e: 'ℹ️' },
   ];
-
-  const inputStyle: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 10, padding: '10px 14px', color: '#fff', fontSize: 13,
-    outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box',
-  };
 
   return (
     <div style={{ height: '100%', display: 'flex', background: '#080810', color: '#fff', fontFamily: 'var(--font-geist-sans), sans-serif' }}>
@@ -331,21 +360,86 @@ export default function Settings() {
           </div>
         )}
 
-        {/* ══ DESKTOP ════════════════════════════════════════════════ */}
+        {/* ══ DESKTOP UI (Merged layouts + Custom Clock Settings) ══ */}
         {tab === 'desktop' && (
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>Desktop</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>Desktop Layout & HUD Settings</h2>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: '0 0 20px' }}>
-              Manage icon layout and desktop behaviour.
+              Fine tune dock positions, icon spacing, and clock visual overlays.
             </p>
 
-            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>Icon Positions</div>
-              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: 0, lineHeight: 1.6 }}>
-                Drag any desktop icon to reposition it anywhere on the screen.
-                Positions are saved automatically during your session.
-              </p>
-              <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              
+              {/* Taskbar Alignment Control */}
+              {setDockPosition && (
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: 18 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Taskbar Alignment</div>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 12px' }}>Choose between standard aligned styles or left-dock system layout.</p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => setDockPosition('center')}
+                      style={{
+                        flex: 1,
+                        background: dockPosition === 'center' ? accentColor : 'rgba(255,255,255,0.05)',
+                        border: 'none', color: '#fff', borderRadius: 8, padding: '10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: '0.2s'
+                      }}
+                    >
+                      Bottom Center
+                    </button>
+                    <button
+                      onClick={() => setDockPosition('left')}
+                      style={{
+                        flex: 1,
+                        background: dockPosition === 'left' ? accentColor : 'rgba(255,255,255,0.05)',
+                        border: 'none', color: '#fff', borderRadius: 8, padding: '10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: '0.2s'
+                      }}
+                    >
+                      Bottom Left
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Dynamic Font and Style controls */}
+              {clockSettings && setClockSettings && (
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: 18 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Clock Typography Options</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Font Family</label>
+                      <select 
+                        value={clockSettings.fontFamily} 
+                        onChange={(e) => setClockSettings((prev: any) => ({ ...prev, fontFamily: e.target.value }))}
+                        style={{ width: '100%', background: '#12141c', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: 8, padding: 10, fontSize: 12 }}
+                      >
+                        <option value="var(--font-geist-sans), sans-serif">Geist Sans (Modern Minimalist)</option>
+                        <option value="'Courier New', Courier, monospace">Terminal Retro Monospace</option>
+                        <option value="'Times New Roman', Times, serif">Classic Editorial Serif</option>
+                        <option value="system-ui, -apple-system, sans-serif">Native System UI</option>
+                        <option value="'Impact', Charcoal, sans-serif">Bold Impact Accent</option>
+                        <option value="'Brush Script MT', cursive">Artistic Script Accent</option>
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>Use 24-Hour Format</span>
+                      <input 
+                        type="checkbox" 
+                        checked={clockSettings.use24Hour} 
+                        onChange={(e) => setClockSettings((prev: any) => ({ ...prev, use24Hour: e.target.checked }))} 
+                        style={{ width: 16, height: 16, cursor: 'pointer' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Standard Reset Layout */}
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: 18 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Icon Alignment</div>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 12px' }}>
+                  Resets custom icon configurations if grid displays overlap.
+                </p>
                 <button
                   onClick={() => { resetIconPositions(); addNotification('Icon positions reset', '🖥️'); }}
                   style={{
@@ -356,6 +450,7 @@ export default function Settings() {
                   Reset to Default Layout
                 </button>
               </div>
+
             </div>
           </div>
         )}
@@ -375,7 +470,7 @@ export default function Settings() {
               ['System',    'Troy Quantum Core'],
               ['Kernel',    '6.8.0-troy'],
               ['Shell',     'troysh 3.2.1'],
-              ['AI Engine', 'Claude Sonnet 4'],
+              ['AI Engine', 'Gemini Ultra 2'],
               ['Accent',    accentName],
             ].map(([k, v]) => (
               <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
