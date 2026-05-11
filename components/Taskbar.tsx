@@ -11,8 +11,10 @@ export default function Taskbar() {
   return (
     <div style={{
       position: 'absolute',
-      bottom: 16, left: 16, right: 16, // Adjusted float spacing
-      height: 48, // Slightly more compact profile
+      bottom: 12, 
+      left: 16, 
+      right: 16,
+      height: 48,
       background: 'rgba(10, 12, 18, 0.45)',
       backdropFilter: 'blur(32px) saturate(180%)',
       WebkitBackdropFilter: 'blur(32px) saturate(180%)',
@@ -43,7 +45,7 @@ export default function Taskbar() {
         }
       `}</style>
 
-      {/* App Launcher Button with custom geometric icon (no generic emojis/text) */}
+      {/* App Launcher Button: Safely locked to the bottom-left */}
       <button
         className={`task-btn ${launcherOpen ? 'launcher-active' : ''}`}
         onClick={toggleLauncher}
@@ -56,6 +58,7 @@ export default function Taskbar() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          flexShrink: 0,
         }}
       >
         <div style={{
@@ -76,11 +79,11 @@ export default function Taskbar() {
         </div>
       </button>
 
-      {/* Elegant, thin vertical divider */}
-      <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.08)', margin: '0 4px' }} />
+      {/* Vertical divider */}
+      <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.08)', margin: '0 4px', flexShrink: 0 }} />
 
       {/* Active Application Window Tabs */}
-      <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 0, flex: 1, marginRight: 12 }}>
         {windows.map(win => {
           const isActive = activeWindowId === win.id;
           return (
@@ -102,6 +105,7 @@ export default function Taskbar() {
                 minWidth: 110,
                 maxWidth: 150,
                 position: 'relative',
+                flexShrink: 0,
               }}
             >
               <span style={{ fontSize: 15, display: 'flex', alignItems: 'center' }}>{win.emoji}</span>
@@ -134,10 +138,8 @@ export default function Taskbar() {
         })}
       </div>
 
-      <div style={{ flex: 1 }} />
-
       {/* Structural Minimalist Branding */}
-      <div style={{ paddingRight: 12, display: 'flex', alignItems: 'center', height: '100%' }}>
+      <div style={{ paddingRight: 12, display: 'flex', alignItems: 'center', height: '100%', flexShrink: 0 }}>
         <span style={{ 
           fontSize: 9, 
           fontWeight: 700, 

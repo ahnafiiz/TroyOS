@@ -3,7 +3,11 @@
 import { useOSStore } from '@/store/useOSStore';
 import { APPS, DOCK_APPS } from '@/config/apps';
 
-export default function Dock() {
+interface DockProps {
+  position?: 'center' | 'left' | 'right';
+}
+
+export default function Dock({ position = 'center' }: DockProps) {
   const { windows, accentColor, openApp } = useOSStore();
 
   const dockApps = DOCK_APPS
@@ -12,12 +16,32 @@ export default function Dock() {
 
   const isOpen = (appId: string) => windows.some(w => w.appId === appId);
 
+  // Dynamic positioning styles mapped to prevent alignment clipping
+  const getDockPositionStyles = () => {
+    switch (position) {
+      case 'left':
+        return {
+          left: 24,
+          transform: 'none',
+        };
+      case 'right':
+        return {
+          right: 24,
+          transform: 'none',
+        };
+      case 'center':
+    default:
+        return {
+          left: '50%',
+          transform: 'translateX(-50%)',
+        };
+    }
+  };
+
   return (
     <div style={{
       position: 'absolute',
-      bottom: 70, // Slightly consolidated layout floating height
-      left: '50%',
-      transform: 'translateX(-50%)',
+      bottom: 72, // Suspends dock cleanly over the unified taskbar
       display: 'flex',
       alignItems: 'center',
       gap: 8,
@@ -29,6 +53,8 @@ export default function Dock() {
       borderRadius: 22,
       zIndex: 100,
       boxShadow: '0 24px 64px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.1)',
+      transition: 'all 0.40s cubic-bezier(0.16, 1, 0.3, 1)',
+      ...getDockPositionStyles()
     }}>
       <style>{`
         .dock-item { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
@@ -42,7 +68,6 @@ export default function Dock() {
 
       {dockApps.map((app, idx) => (
         <div key={app.id} style={{ display: 'flex', alignItems: 'center' }}>
-          {/* Subtle elegant structural separator after custom layout indexes if needed */}
           {idx === 2 && (
             <div style={{ 
               width: 1, 
