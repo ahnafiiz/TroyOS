@@ -9,6 +9,8 @@ import Taskbar from './Taskbar';
 import Dock from './Dock';
 import AppLauncher from './AppLauncher';
 
+// --- Apps & Games Imports ---
+import BrowserApp  from './apps/BrowserApp'; // 👈 Imported your custom BrowserApp
 import GamingHub   from './apps/GamingHub';
 import Terminal    from './apps/Terminal';
 import AIAssistant from './apps/AIAssistant';
@@ -34,7 +36,9 @@ function getAppContent(appId: string, customProps?: any) {
   const gameId = parseInt(appId);
   if (!isNaN(gameId) && BUILTIN_GAMES[gameId]) return BUILTIN_GAMES[gameId];
 
+  // Route specific application IDs to their custom components
   switch (appId) {
+    case 'browser':  return <BrowserApp />; // 👈 Renders your custom BrowserApp instead of the fallback iframe
     case 'gaming':   return <GamingHub />;
     case 'terminal': return <Terminal />;
     case 'ai':       return <AIAssistant />;
@@ -49,6 +53,7 @@ function getAppContent(appId: string, customProps?: any) {
       );
   }
 
+  // Fallback for generic external link apps (if any remain)
   const app = APPS.find(a => a.id === appId);
   if (app?.url) {
     return (
