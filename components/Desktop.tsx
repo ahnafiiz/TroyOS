@@ -6,11 +6,10 @@ import { WALLPAPERS } from '@/config/themes';
 import { APPS } from '@/config/apps';
 import Window from './Window';
 import Taskbar from './Taskbar';
-import Dock from './Dock';
 import AppLauncher from './AppLauncher';
 
 // --- Apps & Games Imports ---
-import BrowserApp  from './apps/BrowserApp'; // 👈 Imported your custom BrowserApp
+import BrowserApp  from './apps/BrowserApp'; 
 import GamingHub   from './apps/GamingHub';
 import Terminal    from './apps/Terminal';
 import AIAssistant from './apps/AIAssistant';
@@ -32,28 +31,18 @@ const snapToGrid = (val: number, gridSize: number = 64) => {
   return Math.round(val / gridSize) * gridSize;
 };
 
-function getAppContent(appId: string, customProps?: any) {
+function getAppContent(appId: string) {
   const gameId = parseInt(appId);
   if (!isNaN(gameId) && BUILTIN_GAMES[gameId]) return BUILTIN_GAMES[gameId];
 
-  // Route specific application IDs to their custom components
   switch (appId) {
-    case 'browser':  return <BrowserApp />; // 👈 Renders your custom BrowserApp instead of the fallback iframe
+    case 'browser':  return <BrowserApp />; 
     case 'gaming':   return <GamingHub />;
     case 'terminal': return <Terminal />;
     case 'ai':       return <AIAssistant />;
-    case 'settings': 
-      return (
-        <Settings 
-          clockSettings={customProps?.clockSettings}
-          setClockSettings={customProps?.setClockSettings}
-          dockPosition={customProps?.dockPosition}
-          setDockPosition={customProps?.setDockPosition}
-        />
-      );
+    case 'settings': return <Settings />;
   }
 
-  // Fallback for generic external link apps (if any remain)
   const app = APPS.find(a => a.id === appId);
   if (app?.url) {
     return (
@@ -100,14 +89,13 @@ function getAppContent(appId: string, customProps?: any) {
   );
 }
 
-// ── Clock Customization Interface ─────────────────────────────────────────
 interface ClockStyleSettings {
   type: 'hud' | 'glass' | 'retro' | 'minimal';
   color: string;
   glowColor: string;
-  fontFamily: string;
-  fontSize: number;
   use24Hour: boolean;
+  fontFamily?: string;
+  fontSize?: number;
 }
 
 interface CustomClockProps {
@@ -143,7 +131,9 @@ function CustomizableClock({ timeStr, dateStr, settings, position, onDragEnd }: 
       window.removeEventListener('mouseup', onMouseUp);
       const finalX = snapToGrid(ev.clientX - dragOffset.current.dx);
       const finalY = snapToGrid(ev.clientY - dragOffset.current.dy);
-      onDragEnd(finalX, finalY);
+      if (typeof onDragEnd === 'function') {
+        onDragEnd(finalX, finalY);
+      }
     };
 
     window.addEventListener('mousemove', onMouseMove);
@@ -154,20 +144,20 @@ function CustomizableClock({ timeStr, dateStr, settings, position, onDragEnd }: 
     switch (settings.type) {
       case 'glass':
         return {
-          background: 'rgba(255, 255, 255, 0.03)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: '0 30px 60px rgba(0,0,0,0.3)',
-          padding: '20px 28px',
-          borderRadius: 28,
+          background: 'rgba(255, 255, 255, 0.02)',
+          backdropFilter: 'blur(30px)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          boxShadow: '0 30px 60px rgba(0,0,0,0.4)',
+          padding: '24px 32px',
+          borderRadius: 24,
         };
       case 'retro':
         return {
-          background: '#05070a',
+          background: '#040508',
           border: `2px solid ${settings.color}`,
-          boxShadow: `0 0 15px ${settings.glowColor}`,
-          padding: '12px 20px',
-          borderRadius: 8,
+          boxShadow: `0 0 20px ${settings.glowColor}`,
+          padding: '14px 22px',
+          borderRadius: 12,
         };
       case 'minimal':
         return {
@@ -180,12 +170,12 @@ function CustomizableClock({ timeStr, dateStr, settings, position, onDragEnd }: 
       case 'hud':
       default:
         return {
-          background: 'rgba(10, 12, 18, 0.45)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255,255,255,0.05)',
-          boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
-          padding: '16px 24px',
-          borderRadius: 24,
+          background: 'rgba(10, 12, 18, 0.5)',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255,255,255,0.04)',
+          boxShadow: '0 16px 36px rgba(0,0,0,0.3)',
+          padding: '18px 26px',
+          borderRadius: 20,
         };
     }
   };
@@ -197,7 +187,7 @@ function CustomizableClock({ timeStr, dateStr, settings, position, onDragEnd }: 
         position: 'absolute',
         left: pos.x,
         top: pos.y,
-        zIndex: 100,
+        zIndex: 5, 
         cursor: dragging ? 'grabbing' : 'grab',
         userSelect: 'none',
         display: 'flex',
@@ -208,13 +198,13 @@ function CustomizableClock({ timeStr, dateStr, settings, position, onDragEnd }: 
       }}
     >
       <div style={{
-        fontSize: settings.fontSize,
+        fontSize: settings.fontSize || 52,
         fontWeight: settings.type === 'retro' ? 900 : 300,
         letterSpacing: '-0.04em',
         lineHeight: 1,
         color: settings.color,
-        fontFamily: settings.fontFamily,
-        textShadow: `0 0 12px ${settings.glowColor}`,
+        fontFamily: settings.fontFamily || 'inherit',
+        textShadow: `0 0 16px ${settings.glowColor}`,
         fontVariantNumeric: 'tabular-nums',
       }}>
         {timeStr}
@@ -234,56 +224,73 @@ function CustomizableClock({ timeStr, dateStr, settings, position, onDragEnd }: 
   );
 }
 
-// ── Draggable Icon ────────────────────────────────────────────────────────
 interface DraggableIconProps {
   appId: string;
   emoji: string;
   name: string;
   initialX: number;
   initialY: number;
-  onDragEnd: (appId: string, x: number, y: number) => void;
-  onOpen: () => void;
+  onDragEnd?: (appId: string, x: number, y: number) => void;
+  onOpen?: () => void;
 }
 
 function DraggableIcon({ appId, emoji, name, initialX, initialY, onDragEnd, onOpen }: DraggableIconProps) {
-  const [pos, setPos] = useState({ x: initialX, y: initialY });
+  // Use a local state that updates to lock drag positions accurately
+  const [localPos, setLocalPos] = useState({ x: initialX, y: initialY });
   const [dragging, setDragging] = useState(false);
   const dragOffset = useRef({ dx: 0, dy: 0 });
   const didDrag = useRef(false);
 
+  // Sync back positions when initial coordinates change via the store reset array mapping
   useEffect(() => {
-    setPos({ x: initialX, y: initialY });
-  }, [initialX, initialY]);
+    if (!dragging) {
+      setLocalPos({ x: initialX, y: initialY });
+    }
+  }, [initialX, initialY, dragging]);
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
     didDrag.current = false;
-    dragOffset.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y };
+    dragOffset.current = { dx: e.clientX - localPos.x, dy: e.clientY - localPos.y };
     setDragging(true);
 
     const onMove = (ev: MouseEvent) => {
       didDrag.current = true;
-      setPos({ x: ev.clientX - dragOffset.current.dx, y: ev.clientY - dragOffset.current.dy });
+      setLocalPos({ x: ev.clientX - dragOffset.current.dx, y: ev.clientY - dragOffset.current.dy });
     };
+
     const onUp = (ev: MouseEvent) => {
       setDragging(false);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      
+      const targetX = ev.clientX - dragOffset.current.dx;
+      const targetY = ev.clientY - dragOffset.current.dy;
+      const snappedX = snapToGrid(targetX);
+      const snappedY = snapToGrid(targetY);
+
       if (didDrag.current) {
-        const snappedX = snapToGrid(ev.clientX - dragOffset.current.dx);
-        const snappedY = snapToGrid(ev.clientY - dragOffset.current.dy);
-        onDragEnd(appId, snappedX, snappedY);
+        if (typeof onDragEnd === 'function') {
+          onDragEnd(appId, snappedX, snappedY);
+        } else {
+          setLocalPos({ x: snappedX, y: snappedY });
+        }
+      } else {
+        setLocalPos({ x: initialX, y: initialY });
       }
     };
+    
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
 
   const onDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!didDrag.current) onOpen();
+    if (!didDrag.current && typeof onOpen === 'function') {
+      onOpen();
+    }
   };
 
   return (
@@ -292,8 +299,8 @@ function DraggableIcon({ appId, emoji, name, initialX, initialY, onDragEnd, onOp
       onDoubleClick={onDoubleClick}
       style={{
         position: 'absolute', 
-        left: pos.x, 
-        top: pos.y, 
+        left: dragging ? localPos.x : initialX, 
+        top: dragging ? localPos.y : initialY, 
         width: 84,
         height: 94,
         display: 'flex', 
@@ -309,7 +316,7 @@ function DraggableIcon({ appId, emoji, name, initialX, initialY, onDragEnd, onOp
         boxShadow: dragging ? '0 16px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)' : 'none',
         transform: dragging ? 'scale(1.05)' : 'scale(1)',
         transition: dragging ? 'none' : 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-        zIndex: dragging ? 9999 : 40,
+        zIndex: dragging ? 9999 : 30, 
         userSelect: 'none',
       }}
       className="desktop-icon"
@@ -351,59 +358,67 @@ function DraggableIcon({ appId, emoji, name, initialX, initialY, onDragEnd, onOp
   );
 }
 
-// ── Desktop ───────────────────────────────────────────────────────────────
 export default function Desktop() {
-  const {
-    windows, wallpaperIndex, launcherOpen, notifications, currentTime,
-    iconPositions, setTime, addNotification, openApp, removeNotification, setIconPosition,
-  } = useOSStore();
+  const store = useOSStore();
+
+  const windows = store.windows || [];
+  const wallpaperIndex = store.wallpaperIndex ?? 0;
+  const launcherOpen = store.launcherOpen ?? false;
+  const notifications = store.notifications || [];
+  const currentTime = store.currentTime || new Date();
+  const iconPositions = store.iconPositions || [];
+
+  const openApp = typeof store.openApp === 'function' ? store.openApp : () => {};
+  const removeNotification = typeof store.removeNotification === 'function' ? store.removeNotification : () => {};
+  const setIconPosition = typeof store.setIconPosition === 'function' ? store.setIconPosition : () => {};
 
   const wallpaper = WALLPAPERS[wallpaperIndex];
 
-  // Clock state customizations
   const [clockPosition, setClockPosition] = useState({ x: 900, y: 64 });
-  const [clockSettings, setClockSettings] = useState<ClockStyleSettings>({
-    type: 'hud',
-    color: '#ffffff',
-    glowColor: 'rgba(255, 255, 255, 0.15)',
-    fontFamily: 'var(--font-geist-sans), sans-serif',
-    fontSize: 52,
-    use24Hour: true
-  });
-
-  // Taskbar/Dock alignments
-  const [dockPosition, setDockPosition] = useState<'center' | 'left'>('center');
-
-  // Custom Context Menu
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
 
-  // Has custom wallpaper checking
-  const [hasCustomWallpaper, setHasCustomWallpaper] = useState(false);
+  // Customization mappings
+  const systemFontFamily = store.systemFontFamily || 'var(--font-geist-sans), sans-serif';
+  const systemFontSize = store.systemFontSize || 13;
+  const accentColor = store.accentColor || '#3b82f6';
+  const customWallpaper = store.customWallpaper;
+  const wallpaperStyle = store.wallpaperStyle || 'fill';
+  const customBackgroundGradient = store.customBackgroundGradient;
+  const customBackgroundColor = store.customBackgroundColor;
 
-  useEffect(() => {
-    const checkCustom = () => {
-      const bg = document.getElementById('nexus-desktop-bg');
-      setHasCustomWallpaper(!!bg?.hasAttribute('data-has-custom'));
-    };
-    
-    // Observer changes on the #nexus-desktop-bg attribute list
-    const observer = new MutationObserver(checkCustom);
-    const bgNode = document.getElementById('nexus-desktop-bg');
-    if (bgNode) {
-      observer.observe(bgNode, { attributes: true, attributeFilter: ['data-has-custom'] });
-    }
-    
-    return () => observer.disconnect();
-  }, []);
-
-  // Custom wallpaper safety loader (Yields inline styling when custom uploads are applied)
+  // Construct wallpaper layout style
   const parsedWallpaperStyle = useMemo(() => {
-    if (hasCustomWallpaper) return {}; // Let custom CSS styles handle it cleanly
+    if (customWallpaper) {
+      let size = 'cover';
+      let repeat = 'no-repeat';
+      
+      if (wallpaperStyle === 'fit') size = 'contain';
+      if (wallpaperStyle === 'stretch') size = '100% 100%';
+      if (wallpaperStyle === 'tile') {
+        size = 'auto';
+        repeat = 'repeat';
+      }
+
+      return {
+        backgroundImage: `url(${customWallpaper})`,
+        backgroundSize: size,
+        backgroundRepeat: repeat,
+        backgroundPosition: 'center',
+      };
+    }
+
+    if (customBackgroundGradient) {
+      return { background: customBackgroundGradient };
+    }
+
+    if (customBackgroundColor) {
+      return { backgroundColor: customBackgroundColor };
+    }
+
     if (!wallpaper || !wallpaper.background) {
       return { background: '#0a0c12' }; 
     }
     let bgStr = wallpaper.background.trim();
-    
     if (bgStr.startsWith('/public/')) {
       bgStr = bgStr.replace('/public/', '/');
     }
@@ -418,17 +433,39 @@ export default function Desktop() {
       };
     }
     return { background: bgStr };
-  }, [wallpaper, hasCustomWallpaper]);
+  }, [wallpaper, customWallpaper, wallpaperStyle, customBackgroundGradient, customBackgroundColor]);
 
   useEffect(() => {
-    const interval = setInterval(() => setTime(new Date()), 1000);
+    const interval = setInterval(() => {
+      if (typeof store.setTime === 'function') {
+        store.setTime(new Date());
+      }
+    }, 1000);
     return () => clearInterval(interval);
-  }, [setTime]);
+  }, [store.setTime]);
 
+  // Initial Startup Notification
   useEffect(() => {
-    const timer = setTimeout(() => addNotification('Nexus OS Engine v2.0 initialized successfully.', '🧠'), 1200);
+    const timer = setTimeout(() => {
+      if (typeof store.addNotification === 'function') {
+        store.addNotification('Nexus OS Engine v2.0 initialized successfully.', '🧠');
+      }
+    }, 1200);
     return () => clearTimeout(timer);
-  }, [addNotification]);
+  }, [store.addNotification]);
+
+  // ── AUTO-FADE NOTIFICATIONS AFTER 5 SECONDS ────────────────────────────
+  useEffect(() => {
+    if (notifications.length > 0) {
+      const latestNotification = notifications[notifications.length - 1];
+      
+      const fadeTimer = setTimeout(() => {
+        removeNotification(latestNotification.id);
+      }, 5000);
+
+      return () => clearTimeout(fadeTimer);
+    }
+  }, [notifications, removeNotification]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -436,23 +473,38 @@ export default function Desktop() {
     }
   }, []);
 
+  const clockSettings = useMemo(() => {
+    const defaultGlow = accentColor + '33';
+    return {
+      type: store.clockSettings?.type || 'hud',
+      color: store.clockSettings?.color || '#ffffff',
+      glowColor: store.clockSettings?.glowColor || defaultGlow,
+      use24Hour: store.clockSettings?.use24Hour !== false,
+      fontSize: 52,
+      fontFamily: systemFontFamily
+    };
+  }, [store.clockSettings, accentColor, systemFontFamily]);
+
   const timeStr = useMemo(() => {
-    return currentTime.toLocaleTimeString([], { 
+    const safeTime = currentTime instanceof Date ? currentTime : new Date();
+    return safeTime.toLocaleTimeString([], { 
       hour: '2-digit', 
       minute: '2-digit', 
       hour12: !clockSettings.use24Hour 
     });
   }, [currentTime, clockSettings.use24Hour]);
 
-  const dateStr = currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+  const dateStr = useMemo(() => {
+    const safeTime = currentTime instanceof Date ? currentTime : new Date();
+    return safeTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+  }, [currentTime]);
   
-  // ── Smart Dynamic Grid Initialization (Fixes initial messy overlap alignment) ──
   const getCleanGridPos = (index: number) => {
     if (typeof window === 'undefined') return { x: 64, y: 64 };
-    const gridSpacingX = 104; // Column size
-    const gridSpacingY = 110; // Row size
+    const gridSpacingX = 110; 
+    const gridSpacingY = 115; 
     const margin = 48;
-    const maxHeight = window.innerHeight - 180; // Safe bottom clearance
+    const maxHeight = window.innerHeight - 200; 
     
     const maxRows = Math.max(1, Math.floor((maxHeight - margin) / gridSpacingY));
     const col = Math.floor(index / maxRows);
@@ -464,7 +516,6 @@ export default function Desktop() {
     };
   };
 
-  // Context Menu helpers
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     setContextMenu({
@@ -487,14 +538,20 @@ export default function Desktop() {
     <div 
       onContextMenu={handleContextMenu}
       style={{
-        position: 'absolute', inset: 0, overflow: 'hidden', userSelect: 'none',
-        fontFamily: 'var(--font-geist-sans), sans-serif', color: '#fff',
+        position: 'absolute', 
+        inset: 0, 
+        overflow: 'hidden', 
+        userSelect: 'none',
+        fontFamily: systemFontFamily, 
+        color: '#fff',
+        fontSize: `${systemFontSize}px`
       }}
     >
       <style>{`
         @keyframes gridPulse { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.25; } }
-        .notif-enter { animation: notifSlide 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        .notif-enter { animation: notifSlide 0.5s cubic-bezier(0.16, 1, 0.3, 1), notifFadeOut 0.4s 4.6s forwards ease-out; }
         @keyframes notifSlide { from { transform: translateY(-20px) scale(0.95); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+        @keyframes notifFadeOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.92); filter: blur(4px); } }
         
         .desktop-icon:hover .desktop-icon-inner {
           background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03)) !important;
@@ -514,8 +571,8 @@ export default function Desktop() {
         }}
       />
 
-      {/* Grid Lines */}
-      {!hasCustomWallpaper && (
+      {/* Grid Lines Overlay */}
+      {!customWallpaper && !customBackgroundGradient && !customBackgroundColor && (
         <div
           style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
@@ -529,7 +586,7 @@ export default function Desktop() {
         />
       )}
 
-      {/* Draggable Snappable Clock */}
+      {/* Clock - Rendered behind workspace windows */}
       <CustomizableClock
         timeStr={timeStr}
         dateStr={dateStr}
@@ -542,6 +599,7 @@ export default function Desktop() {
       {APPS.map((app, index) => {
         const saved = iconPositions.find(p => p.appId === app.id);
         const dynamicPosition = getCleanGridPos(index);
+        
         return (
           <DraggableIcon
             key={app.id}
@@ -556,19 +614,17 @@ export default function Desktop() {
         );
       })}
 
-      {/* Windows with Personalization State Props */}
+      {/* Application Sandbox Windows */}
       {windows.map(win => (
         <Window key={win.id} {...win}>
-          {getAppContent(win.appId, {
-            clockSettings, setClockSettings,
-            dockPosition, setDockPosition
-          })}
+          {getAppContent(win.appId)}
         </Window>
       ))}
 
+      {/* System Launcher Menu Overlay */}
       {launcherOpen && <AppLauncher />}
 
-      {/* Notifications */}
+      {/* System Notifications Overlay */}
       <div style={{ position: 'absolute', top: 30, right: 30, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 10 }}>
         {notifications.map(n => (
           <div key={n.id} className="notif-enter" onClick={() => removeNotification(n.id)}
@@ -599,7 +655,7 @@ export default function Desktop() {
         ))}
       </div>
 
-      {/* Right-Click Context Menu */}
+      {/* Global Right Click Workspace Menu */}
       {contextMenu.visible && (
         <div style={{
           position: 'absolute',
@@ -644,29 +700,23 @@ export default function Desktop() {
         </div>
       )}
 
-      {/* ── Fixed Bottom Alignment Wrapper (Preempts Dock Clipping) ── */}
+      {/* Floating System Taskbar Layer */}
       <div style={{
         position: 'absolute',
-        bottom: 0,
-        left: dockPosition === 'left' ? 24 : 0,
-        right: dockPosition === 'left' ? 'auto' : 0,
-        width: dockPosition === 'left' ? 'auto' : '100%',
+        bottom: 12, 
+        left: 0,
+        right: 0,
         display: 'flex',
-        flexDirection: 'column',
-        alignItems: dockPosition === 'left' ? 'flex-start' : 'center',
-        paddingBottom: 0,
-        transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-        zIndex: 50,
+        justifyContent: 'center',
+        zIndex: 101, 
         pointerEvents: 'none',
       }}>
         <div style={{ 
-          pointerEvents: 'auto', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: dockPosition === 'left' ? 'flex-start' : 'center', 
-          width: '100%' 
+          pointerEvents: 'auto',
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'center'
         }}>
-          <Dock />
           <Taskbar />
         </div>
       </div>

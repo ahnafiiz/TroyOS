@@ -8,11 +8,11 @@ const BOOT_STEPS = [
   { message: 'Booting Troy OS...', weight: 4.5 },
   { message: 'Initializing Troy OS kernel...', weight: 2 },
   { message: 'Loading Troy modules...', weight: 3 },
-  { message: 'Mounting Proxy...', weight: 1 },
-  { message: 'Starting Troy services...', weight: 9 },
-  { message: 'Authenticating user...', weight: 7 },
+  { message: 'Starting Troy...', weight: 1 },
+  { message: 'Starting Troy services...', weight: 6 },
+  { message: 'Authenticating user...', weight: 3 },
   { message: 'Applying visual theme...', weight: 2 },
-  { message: 'Almost There...', weight: 5 },
+  { message: 'Almost There...', weight: 2.5 },
 ];
 
 const GEIST_FONT = 'var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Inter", sans-serif';
@@ -172,8 +172,8 @@ export default function BootScreen({ onComplete }: Props) {
 
       {/* Footer system details */}
       <div style={{ position: 'absolute', bottom: 40, textAlign: 'center', opacity: 0.3, letterSpacing: '0.15em' }}>
-        <p style={{ fontSize: 9, fontWeight: 800, margin: 0, color: '#fff' }}>TROY OS v2.5.0</p>
-        <p style={{ fontSize: 8, marginTop: 4, color: 'rgba(255,255,255,0.5)' }}>All modules synchronized</p>
+        <p style={{ fontSize: 9, fontWeight: 800, margin: 0, color: '#fff' }}>TROY OS</p>
+        <p style={{ fontSize: 9, marginTop: 4, color: 'rgba(255,255,255,0.5)' }}>VERSION 2.5.0</p>
       </div>
     </div>
   );

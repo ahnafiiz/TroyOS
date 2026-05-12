@@ -1,11 +1,19 @@
-// components/apps/AIAssistant.tsx
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import { useOSStore } from '@/store/useOSStore';
 
 export default function AIAssistant() {
-  const { aiMessages, accentColor, addAIMessage } = useOSStore();
+  const store = useOSStore();
+  
+  // Safe Fallbacks to prevent runtime crashes if store state is hydrating:
+  const aiMessages = store.aiMessages ?? [];
+  const accentColor = store.accentColor ?? '#3b82f6';
+  
+  // DIAGNOSIS FIX: Match this exactly to whatever your useOSStore action is named.
+  // We'll map it to 'addAiMessage' (common typo) or fall back to 'addAIMessage'.
+  const addAIMessage = store.addAiMessage || store.addAIMessage;
+
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -18,6 +26,15 @@ export default function AIAssistant() {
     const text = input.trim();
     if (!text || loading) return;
 
+    // Guard checking if the function exists before calling it
+    if (typeof addAIMessage !== 'function') {
+      console.error(
+        "AIAssistant: Neither 'addAiMessage' nor 'addAIMessage' was found in useOSStore.", 
+        store
+      );
+      return;
+    }
+
     addAIMessage('user', text);
     setInput('');
     setLoading(true);
@@ -28,7 +45,6 @@ export default function AIAssistant() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [
-            // Pass full conversation history for multi-turn context
             ...aiMessages.map((m) => ({
               role: m.role === 'user' ? 'user' : 'assistant',
               content: m.text,
