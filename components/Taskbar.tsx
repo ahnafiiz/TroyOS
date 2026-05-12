@@ -10,7 +10,6 @@ export default function Taskbar() {
   const toggleMinimize = store.toggleMinimize;
   const focusWindow = store.focusWindow;
 
-  // Real-time systemic clock hook
   const [time, setTime] = useState('');
   useEffect(() => {
     const updateTime = () => {
@@ -44,7 +43,10 @@ export default function Taskbar() {
       }
     } else {
       if (typeof store.openApp === 'function') {
-        store.openApp(appId);
+        const app = systemApps.find(a => a.id === appId);
+        if (app) {
+          store.openApp(app.id, app.name, app.emoji, app.color);
+        }
       }
     }
   };
@@ -69,7 +71,7 @@ export default function Taskbar() {
         display: 'flex',
         alignItems: 'center',
         padding: '0 20px',
-        zIndex: 9999, // Floating on top of normal layers
+        zIndex: 9999,
         justifyContent: 'space-between',
         userSelect: 'none',
         fontFamily: systemFontFamily,
@@ -105,11 +107,11 @@ export default function Taskbar() {
         }
       `}</style>
 
-      {/* LEFT: Core Start Menu Trigger */}
+      {/* LEFT: Start Menu Trigger */}
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <button
           className="tb-btn"
-          onClick={store.toggleLauncher} // FIXED: Attached state toggle function
+          onClick={store.toggleLauncher}
           style={{
             width: 36,
             height: 36,
@@ -128,7 +130,7 @@ export default function Taskbar() {
         </button>
       </div>
 
-      {/* CENTER: Dock Grid Infrastructure */}
+      {/* CENTER: Dock */}
       <div
         style={{
           display: 'flex',
@@ -167,9 +169,9 @@ export default function Taskbar() {
               }}
               title={app.name}
             >
-              <span 
+              <span
                 className="app-icon"
-                style={{ 
+                style={{
                   transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                   filter: isCurrentActive ? 'drop-shadow(0 2px 8px rgba(255,255,255,0.15))' : 'none'
                 }}
@@ -196,9 +198,9 @@ export default function Taskbar() {
         })}
       </div>
 
-      {/* RIGHT: High-End Polished System Tray */}
+      {/* RIGHT: System Tray */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div 
+        <div
           style={{
             fontSize: '11px',
             fontWeight: 700,
