@@ -68,6 +68,7 @@ interface OSState {
   dockAutoHide: boolean;
   uiOpacity: number;
   uiBlur: number;
+  uiBorderRadius: number;
 
   // Typography Settings
   systemFontFamily: string;
@@ -128,6 +129,7 @@ interface OSState {
   setDockAutoHide: (enabled: boolean) => void;
   setUIOpacity: (opacity: number) => void;
   setUIBlur: (blur: number) => void;
+  setUIBorderRadius: (radius: number) => void;
   setSystemFontFamily: (font: string) => void;
   setSystemFontSize: (size: number) => void;
   setSystemFontWeight: (weight: '300' | '400' | '500' | '600' | '700' | '800') => void;
@@ -170,6 +172,7 @@ export const useOSStore = create<OSState>()(
       dockAutoHide: false,
       uiOpacity: 0.85,
       uiBlur: 20,
+      uiBorderRadius: 16,
       systemFontFamily: 'var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       systemFontSize: 13,
       systemFontWeight: '500',
@@ -326,7 +329,6 @@ export const useOSStore = create<OSState>()(
         };
       }),
 
-      // Explicit alignment mapping logic on reset
       resetIconPositions: () => set(() => {
         const defaultAppIds = ['pc', 'browser', 'terminal', 'notes', 'ai', 'settings'];
         const defaultLayout = defaultAppIds.map((appId, index) => ({
@@ -398,6 +400,7 @@ export const useOSStore = create<OSState>()(
       setDockAutoHide: (enabled) => set({ dockAutoHide: enabled }),
       setUIOpacity: (opacity) => set({ uiOpacity: opacity }),
       setUIBlur: (blur) => set({ uiBlur: blur }),
+      setUIBorderRadius: (radius) => set({ uiBorderRadius: radius }),
       setSystemFontFamily: (font) => set({ systemFontFamily: font }),
       setSystemFontSize: (size) => set({ systemFontSize: size }),
       setSystemFontWeight: (weight) => set({ systemFontWeight: weight }),
@@ -426,6 +429,7 @@ export const useOSStore = create<OSState>()(
         dockAutoHide: state.dockAutoHide,
         uiOpacity: state.uiOpacity,
         uiBlur: state.uiBlur,
+        uiBorderRadius: state.uiBorderRadius,
         systemFontFamily: state.systemFontFamily,
         systemFontSize: state.systemFontSize,
         systemFontWeight: state.systemFontWeight,
