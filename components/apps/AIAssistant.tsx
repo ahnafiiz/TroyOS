@@ -6,13 +6,9 @@ import { useOSStore } from '@/store/useOSStore';
 export default function AIAssistant() {
   const store = useOSStore();
   
-  // Safe Fallbacks to prevent runtime crashes if store state is hydrating:
   const aiMessages = store.aiMessages ?? [];
   const accentColor = store.accentColor ?? '#3b82f6';
-  
-  // DIAGNOSIS FIX: Match this exactly to whatever your useOSStore action is named.
-  // We'll map it to 'addAiMessage' (common typo) or fall back to 'addAIMessage'.
-  const addAIMessage = store.addAIMessage || store.addAIMessage;
+  const addAIMessage = store.addAIMessage;
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,12 +22,8 @@ export default function AIAssistant() {
     const text = input.trim();
     if (!text || loading) return;
 
-    // Guard checking if the function exists before calling it
     if (typeof addAIMessage !== 'function') {
-      console.error(
-        "AIAssistant: Neither 'addAiMessage' nor 'addAIMessage' was found in useOSStore.", 
-        store
-      );
+      console.error("AIAssistant: 'addAIMessage' was not found in useOSStore.", store);
       return;
     }
 
@@ -142,9 +134,9 @@ export default function AIAssistant() {
             alignItems: 'flex-end',
           }}>
             <div style={{
-              background: msg.role === 'ai' ? 'rgba(255,255,255,0.05)' : `${accentColor}22`,
-              border: `1px solid ${msg.role === 'ai' ? 'rgba(255,255,255,0.1)' : `${accentColor}44`}`,
-              borderRadius: msg.role === 'ai' ? '16px 16px 16px 4px' : '16px 16px 4px 16px',
+              background: msg.role === 'assistant' ? 'rgba(255,255,255,0.05)' : `${accentColor}22`,
+              border: `1px solid ${msg.role === 'assistant' ? 'rgba(255,255,255,0.1)' : `${accentColor}44`}`,
+              borderRadius: msg.role === 'assistant' ? '16px 16px 16px 4px' : '16px 16px 4px 16px',
               padding: '12px 16px',
               fontSize: 13, color: 'rgba(255,255,255,0.9)', lineHeight: 1.6,
               maxWidth: '85%',
