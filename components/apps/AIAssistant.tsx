@@ -12,7 +12,7 @@ export default function AIAssistant() {
   
   // DIAGNOSIS FIX: Match this exactly to whatever your useOSStore action is named.
   // We'll map it to 'addAiMessage' (common typo) or fall back to 'addAIMessage'.
-  const addAIMessage = store.addAiMessage || store.addAIMessage;
+  const addAIMessage = store.addAIMessage || store.addAIMessage;
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
