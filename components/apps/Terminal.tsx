@@ -286,7 +286,7 @@ export default function Terminal() {
       {/* Console Display Output Area */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {terminalLines.map((line, i) => {
-          const isUserCommand = line.type === 'user' || line.type === 'cmd';
+          const isUserCommand = line.type === 'user';
           const isSystemError = line.type === 'error';
 
           return (
