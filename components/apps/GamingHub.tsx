@@ -1,10 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useOSStore } from '@/store/useOSStore';
 import { GAMES, GameConfig } from '@/config/games';
 
 const GEIST_FONT = 'var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Inter", sans-serif';
+
+interface CSSWithCustomProps extends React.CSSProperties {
+  '--row-accent-color'?: string;
+}
 
 const CATEGORY_ICONS: Record<string, string> = {
   'All':         '🏠',
@@ -48,7 +52,13 @@ export default function GamingHub() {
     if (game.type === 'external' && game.url) {
       window.open(game.url, '_blank', 'noopener,noreferrer');
     } else {
-      openApp(game.id.toString(), game.name, game.emoji, game.color, 820, 680);
+      openApp(game.id.toString(), {
+        name: game.name,
+        emoji: game.emoji,
+        color: game.color,
+        width: 820,
+        height: 680,
+      });
     }
   };
 
@@ -262,8 +272,8 @@ export default function GamingHub() {
                   cursor: 'pointer',
                   position: 'relative',
                   overflow: 'hidden',
-                  ['--row-accent-color' as any]: `${game.color}44`,
-                }}
+                  '--row-accent-color': `${game.color}44`,
+                } as CSSWithCustomProps}
               >
                 {/* Left accent bar */}
                 <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: game.color, opacity: 0.5 }} />

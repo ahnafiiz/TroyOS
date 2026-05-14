@@ -117,7 +117,7 @@ export interface OSState {
   /* WINDOWS */
   windows: WindowState[];
 
-  openApp: (id: string) => void;
+  openApp: (id: string, meta?: Partial<WindowState>) => void;
   closeWindow: (id: string) => void;
   focusWindow: (id: string) => void;
 
@@ -300,7 +300,7 @@ export const useOSStore = create<OSState>((set) => ({
 
   windows: [],
 
-  openApp: (id) =>
+  openApp: (id, meta) =>
     set((state) => {
       const existing = state.windows.find(
         (w) => w.id === id
@@ -310,7 +310,7 @@ export const useOSStore = create<OSState>((set) => ({
         return {
           windows: state.windows.map((w) =>
             w.id === id
-              ? { ...w, minimized: false }
+              ? { ...w, minimized: false, ...meta }
               : w
           ),
           activeWindowId: id,
@@ -323,9 +323,10 @@ export const useOSStore = create<OSState>((set) => ({
           {
             id,
             appId: id,
-            title: id,
+            title: meta?.name ?? id,
             minimized: false,
             maximized: false,
+            ...meta,
           },
         ],
         activeWindowId: id,
@@ -400,17 +401,12 @@ export const useOSStore = create<OSState>((set) => ({
     set((state) => ({
       terminalLines: [
         ...state.terminalLines,
-        {
-          type,
-          text,
-        },
+        { type, text },
       ],
     })),
 
   clearTerminal: () =>
-    set({
-      terminalLines: [],
-    }),
+    set({ terminalLines: [] }),
 
   /* AI CHAT */
 
@@ -420,17 +416,12 @@ export const useOSStore = create<OSState>((set) => ({
     set((state) => ({
       aiMessages: [
         ...state.aiMessages,
-        {
-          role,
-          text,
-        },
+        { role, text },
       ],
     })),
 
   clearAIMessages: () =>
-    set({
-      aiMessages: [],
-    }),
+    set({ aiMessages: [] }),
 
   /* LAUNCHER */
 
