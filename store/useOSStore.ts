@@ -1,445 +1,631 @@
-'use client';
+import { create } from "zustand";
 
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { DEFAULTS } from '@/config/themes';
-
-// ─── Interfaces ──────────────────────────────────────────────────────────
-export interface OSWindow {
-  id: string;          
-  appId: string;       
-  name: string;
-  emoji: string;
-  color: string;
-  width: number;
-  height: number;
-  x: number;
-  y: number;
-  zIndex: number;
-  isMinimized: boolean;
-  isMaximized: boolean;
-}
-
-export interface Notification {
-  id: number;
-  message: string;
-  icon: string;
-}
-
-interface IconPosition {
+export interface WindowState {
+  id: string;
+  title: string;
   appId: string;
-  x: number;
-  y: number;
+  name?: string;
+  emoji?: string;
+  color?: string;
+  width?: number;
+  height?: number;
+  minimized?: boolean;
+  maximized?: boolean;
+  position?: { x: number; y: number };
+  size?: { width: number; height: number };
 }
 
-interface OSState {
-  // ─── WINDOWS & NAVIGATION STATE ───
-  windows: OSWindow[];
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  icon?: string;
+}
+
+export interface ClockSettings {
+  showSeconds: boolean;
+  militaryTime: boolean;
+  showDate: boolean;
+  dateFormat: string;
+  type?: string;
+  color?: string;
+  glowColor?: string;
+  use24Hour?: boolean;
+  fontSize?: number;
+}
+
+export interface Theme {
+  id: number;
+  name: string;
+  wallpaper: string;
+  gradient?: string;
+  color?: string;
+}
+
+/* TERMINAL */
+
+export interface TerminalLine {
+  type: "system" | "input" | "output" | "error" | "user" | "sys";
+  text: string;
+}
+
+/* TYPES */
+
+export type ThemeMode =
+  | "dark"
+  | "light"
+  | "system"
+  | "glass"
+  | "neon"
+  | "aero";
+
+export type DockPosition = "bottom" | "left" | "right" | "top";
+
+export type DockStyle =
+  | "glass"
+  | "solid"
+  | "minimal"
+  | "transparent"
+  | "pill";
+
+export type UIStyleProfile =
+  | "default"
+  | "compact"
+  | "aero"
+  | "flat"
+  | "neo-brutalism"
+  | "cyberpunk"
+  | "minimalist";
+
+export type FontTransformStyle =
+  | "none"
+  | "uppercase"
+  | "lowercase"
+  | "capitalize";
+
+export type CursorStyle =
+  | "default"
+  | "pointer"
+  | "crosshair"
+  | "none"
+  | "dot";
+
+export type LauncherPosition =
+  | "left"
+  | "center"
+  | "bottom-left"
+  | "bottom-right"
+  | "top-left";
+
+export type WindowAnimationCurve =
+  | "smooth"
+  | "slide"
+  | "fade"
+  | "snappy"
+  | "retro-pop";
+
+/* STORE */
+
+export interface OSState {
+  /* WINDOWS */
+  windows: WindowState[];
+
+  openApp: (id: string) => void;
+  closeWindow: (id: string) => void;
+  focusWindow: (id: string) => void;
+
   activeWindowId: string | null;
-  nextWindowId: number;
-  nextZIndex: number;
-  launcherOpen: boolean;
-  currentTime: Date;
-  notifications: Notification[];
-  nextNotifId: number;
-  iconPositions: IconPosition[];
+  setActiveWindowId: (id: string | null) => void;
 
-  // ─── APP STATE ───
-  terminalLines: Array<{ type: 'sys' | 'user' | 'error'; text: string }>;
-  aiMessages: Array<{ role: 'user' | 'assistant'; text: string }>;
-  notesContent: string;
-  browserUrl: string;
+  toggleMinimize: (id: string) => void;
+  toggleMaximize: (id: string) => void;
 
-  // ─── CUSTOMIZATION STATE ───
-  wallpaperIndex: number;
-  customWallpaper: string | null;         
-  wallpaperStyle: 'fill' | 'fit' | 'tile' | 'stretch';
-  customBackgroundGradient: string | null; 
-  customBackgroundColor: string | null;    
-
-  // Themes & Accents
-  accentColor: string;
-  accentName: string;
-  isDarkMode: boolean;
-
-  // Taskbar / Dock Settings
-  dockPosition: 'bottom' | 'top' | 'left' | 'right';
-  dockSize: 'small' | 'medium' | 'large';
-  dockAutoHide: boolean;
-  uiOpacity: number;
-  uiBlur: number;
-  uiBorderRadius: number;
-
-  // Typography Settings
-  systemFontFamily: string;
-  systemFontSize: number; 
-  systemFontWeight: '300' | '400' | '500' | '600' | '700' | '800';
-
-  // System Sounds & Effects
-  systemSoundsEnabled: boolean;
-  systemVolume: number; 
-
-  // Clock Settings
-  clockSettings: {
-    type: 'hud' | 'glass' | 'retro' | 'minimal';
-    color: string;
-    glowColor: string;
-    use24Hour: boolean;
-    fontFamily?: string;
-    fontSize?: number;
-  };
-
-  // ─── ACTIONS ────────────────────────────────────────────────────────────
-  setTime: (time: Date) => void;
-  openApp: (
-    appId: string, 
-    name: string, 
-    emoji: string, 
-    color: string, 
-    defaultWidth?: number, 
-    defaultHeight?: number
+  updateWindowPosition: (
+    id: string,
+    position: { x: number; y: number }
   ) => void;
-  closeWindow: (windowId: string) => void;
-  focusWindow: (windowId: string) => void;
-  toggleMinimize: (windowId: string) => void;
-  toggleMaximize: (windowId: string) => void;
-  updateWindowPosition: (windowId: string, x: number, y: number) => void;
-  updateWindowSize: (windowId: string, width: number, height: number) => void;
-  setLauncherOpen: (open: boolean) => void;
-  toggleLauncher: () => void;
-  setIconPosition: (appId: string, x: number, y: number) => void;
-  resetIconPositions: () => void;
-  addNotification: (message: string, icon?: string) => void;
-  removeNotification: (id: number) => void;
-  setClockSettings: (settings: Partial<OSState['clockSettings']>) => void;
-  setNotesContent: (content: string) => void;
-  addAIMessage: (role: 'user' | 'ai', text: string) => void;
-  addTerminalLine: (type: 'sys' | 'user' | 'error', text: string) => void;
 
-  // Customization Setters
+  updateWindowSize: (
+    id: string,
+    size: { width: number; height: number }
+  ) => void;
+
+  /* TERMINAL */
+
+  terminalLines: TerminalLine[];
+
+  addTerminalLine: (
+    type: TerminalLine["type"],
+    text: string
+  ) => void;
+
+  clearTerminal: () => void;
+
+  /* LAUNCHER */
+
+  launcherOpen: boolean;
+  toggleLauncher: () => void;
+
+  launcherPosition: LauncherPosition;
+  setLauncherPosition: (pos: LauncherPosition) => void;
+
+  /* CLOCK */
+
+  currentTime: Date;
+  setTime: (time: Date) => void;
+
+  clockSettings: ClockSettings;
+  setClockSettings: (settings: Partial<ClockSettings>) => void;
+
+  /* WALLPAPER */
+
+  wallpaperIndex: number;
   setWallpaperIndex: (index: number) => void;
-  setCustomWallpaper: (wallpaperUrl: string | null) => void;
-  setWallpaperStyle: (style: 'fill' | 'fit' | 'tile' | 'stretch') => void;
-  setCustomBackgroundGradient: (gradient: string | null) => void;
-  setCustomBackgroundColor: (color: string | null) => void;
-  setAccentColor: (hexColor: string, name?: string) => void;
-  setIsDarkMode: (enabled: boolean) => void;
-  setDockPosition: (pos: 'bottom' | 'top' | 'left' | 'right') => void;
-  setDockSize: (size: 'small' | 'medium' | 'large') => void;
-  setDockAutoHide: (enabled: boolean) => void;
-  setUIOpacity: (opacity: number) => void;
-  setUIBlur: (blur: number) => void;
-  setUIBorderRadius: (radius: number) => void;
+
+  customWallpaper: string | null;
+  setCustomWallpaper: (wallpaper: string | null) => void;
+
+  customBackgroundGradient: string;
+  customBackgroundColor: string;
+
+  wallpaperStyle: string;
+  setWallpaperStyle: (style: string) => void;
+
+  /* THEME */
+
+  isDarkMode: boolean;
+  setIsDarkMode: (value: boolean) => void;
+
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
+
+  accentColor: string;
+  setAccentColor: (color: string) => void;
+
+  /* TASKBAR */
+
+  taskbarHeight: number;
+  setTaskbarHeight: (height: number) => void;
+
+  dockAutoHide: boolean;
+  setDockAutoHide: (value: boolean) => void;
+
+  dockPosition: DockPosition;
+  setDockPosition: (pos: DockPosition) => void;
+
+  dockStyle: DockStyle;
+  setDockStyle: (style: DockStyle) => void;
+
+  dockSize: number;
+  setDockSize: (size: number) => void;
+
+  /* UI */
+
+  systemFontFamily: string;
   setSystemFontFamily: (font: string) => void;
+
+  systemFontSize: number;
   setSystemFontSize: (size: number) => void;
-  setSystemFontWeight: (weight: '300' | '400' | '500' | '600' | '700' | '800') => void;
-  setSystemSoundsEnabled: (enabled: boolean) => void;
-  setSystemVolume: (volume: number) => void;
+
+  systemFontWeight: number;
+  setSystemFontWeight: (weight: number) => void;
+
+  uiBorderRadius: number;
+  setUiBorderRadius: (radius: number) => void;
+
+  titlebarHeight: number;
+  setTitlebarHeight: (height: number) => void;
+
+  uiOpacity: number;
+  setUiOpacity: (opacity: number) => void;
+
+  uiBlur: number;
+  setUiBlur: (blur: number) => void;
+
+  uiStyleProfile: UIStyleProfile;
+  setUiStyleProfile: (profile: UIStyleProfile) => void;
+
+  windowAnimationCurve: WindowAnimationCurve;
+  setWindowAnimationCurve: (
+    curve: WindowAnimationCurve
+  ) => void;
+
+  fontTransformStyle: FontTransformStyle;
+  setFontTransformStyle: (
+    style: FontTransformStyle
+  ) => void;
+
+  cursorStyle: CursorStyle;
+  setCursorStyle: (style: CursorStyle) => void;
+
+  iconSize: number;
+  setIconSize: (size: number) => void;
+
+  showDesktopGrid: boolean;
+  setShowDesktopGrid: (value: boolean) => void;
+
+  reducedMotion: boolean;
+  setReducedMotion: (value: boolean) => void;
+
+  particleEffects: boolean;
+  setParticleEffects: (value: boolean) => void;
+
+  windowBorderGlow: boolean;
+  setWindowBorderGlow: (value: boolean) => void;
+
+  /* DESKTOP ICONS */
+
+  iconPositions: Record<
+    string,
+    { x: number; y: number }
+  >;
+
+  setIconPosition: (
+    id: string,
+    position: { x: number; y: number }
+  ) => void;
+
+  /* NOTIFICATIONS */
+
+  notifications: NotificationItem[];
+
+  addNotification: (
+    title: string,
+    message: string,
+    icon?: string
+  ) => void;
+
+  removeNotification: (id: string) => void;
 }
 
-// ─── Store Definition ────────────────────────────────────────────────────
-export const useOSStore = create<OSState>()(
-  persist(
-    (set, get) => ({
-      // --- Initial State ---
-      windows: [],
-      activeWindowId: null,
-      nextWindowId: 1,
-      nextZIndex: 10,
-      launcherOpen: false,
-      currentTime: new Date(),
-      notifications: [],
-      nextNotifId: 1,
-      iconPositions: [],
+/* STORE */
 
-      // App Histories
-      terminalLines: [{ type: 'sys', text: 'Nexus OS v2.0.4 — type "help"' }],
-      aiMessages: [],
-      notesContent: '# Welcome\nStart typing...',
-      browserUrl: 'https://google.com',
+export const useOSStore = create<OSState>((set) => ({
+  /* WINDOWS */
 
-      // Customization Initial State
-      wallpaperIndex: DEFAULTS.wallpaperIndex ?? 0,
-      customWallpaper: null,
-      wallpaperStyle: 'fill',
-      customBackgroundGradient: null,
-      customBackgroundColor: null,
-      accentColor: DEFAULTS.accentColor ?? '#3b82f6',
-      accentName: DEFAULTS.accentName ?? 'Blue',
-      isDarkMode: true,
-      dockPosition: 'bottom',
-      dockSize: 'medium',
-      dockAutoHide: false,
-      uiOpacity: 0.85,
-      uiBlur: 20,
-      uiBorderRadius: 16,
-      systemFontFamily: 'var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      systemFontSize: 13,
-      systemFontWeight: '500',
-      systemSoundsEnabled: true,
-      systemVolume: 80,
-      clockSettings: {
-        type: 'hud',
-        color: '#ffffff',
-        glowColor: 'rgba(255,255,255,0.2)',
-        use24Hour: true,
-      },
+  windows: [],
 
-      // --- Actions ---
-      setTime: (time) => set({ currentTime: time }),
+  openApp: (id) =>
+    set((state) => {
+      const existing = state.windows.find(
+        (w) => w.id === id
+      );
 
-      openApp: (appId, name, emoji, color, defaultWidth = 600, defaultHeight = 450) => {
-        const state = get();
-        const windows = state.windows ?? [];
-        
-        const existingWindow = windows.find(w => w.appId === appId);
-        if (existingWindow) {
-          set((state) => ({
-            activeWindowId: existingWindow.id,
-            windows: (state.windows ?? []).map(w => 
-              w.id === existingWindow.id 
-                ? { ...w, isMinimized: false, zIndex: state.nextZIndex } 
-                : w
-            ),
-            nextZIndex: state.nextZIndex + 1,
-            launcherOpen: false
-          }));
-          return;
-        }
-
-        const newWindowId = `${appId}-${state.nextWindowId}`;
-        const offsetMultiplier = windows.length % 6;
-        const defaultX = 120 + offsetMultiplier * 28;
-        const defaultY = 100 + offsetMultiplier * 28;
-
-        const newWindow: OSWindow = {
-          id: newWindowId,
-          appId,
-          name,
-          emoji,
-          color,
-          width: defaultWidth,
-          height: defaultHeight,
-          x: defaultX,
-          y: defaultY,
-          zIndex: state.nextZIndex,
-          isMinimized: false,
-          isMaximized: false
-        };
-
-        set((state) => ({
-          windows: [...(state.windows ?? []), newWindow],
-          activeWindowId: newWindowId,
-          nextWindowId: state.nextWindowId + 1,
-          nextZIndex: state.nextZIndex + 1,
-          launcherOpen: false
-        }));
-      },
-
-      closeWindow: (windowId) => set((state) => {
-        const windows = state.windows ?? [];
-        const remainingWindows = windows.filter(w => w.id !== windowId);
-        const nextActive = remainingWindows.reduce<OSWindow | null>((highest, win) => {
-          if (win.isMinimized) return highest;
-          if (!highest || win.zIndex > highest.zIndex) return win;
-          return highest;
-        }, null);
-
+      if (existing) {
         return {
-          windows: remainingWindows,
-          activeWindowId: nextActive ? nextActive.id : null
-        };
-      }),
-
-      focusWindow: (windowId) => set((state) => {
-        if (state.activeWindowId === windowId) return {};
-        const windows = state.windows ?? [];
-        return {
-          activeWindowId: windowId,
-          nextZIndex: state.nextZIndex + 1,
-          windows: windows.map(w => 
-            w.id === windowId 
-              ? { ...w, zIndex: state.nextZIndex, isMinimized: false } 
+          windows: state.windows.map((w) =>
+            w.id === id
+              ? { ...w, minimized: false }
               : w
-          )
+          ),
+          activeWindowId: id,
         };
-      }),
+      }
 
-      toggleMinimize: (windowId) => set((state) => {
-        const windows = state.windows ?? [];
-        const window = windows.find(w => w.id === windowId);
-        if (!window) return {};
-
-        const willMinimize = !window.isMinimized;
-        let nextActiveId = state.activeWindowId;
-
-        if (willMinimize && state.activeWindowId === windowId) {
-          const visibleWindows = windows.filter(w => w.id !== windowId && !w.isMinimized);
-          const nextActive = visibleWindows.reduce<OSWindow | null>((highest, win) => {
-            if (!highest || win.zIndex > highest.zIndex) return win;
-            return highest;
-          }, null);
-          nextActiveId = nextActive ? nextActive.id : null;
-        } else if (!willMinimize) {
-          nextActiveId = windowId;
-        }
-
-        return {
-          activeWindowId: nextActiveId,
-          nextZIndex: willMinimize ? state.nextZIndex : state.nextZIndex + 1,
-          windows: windows.map(w => 
-            w.id === windowId 
-              ? { 
-                  ...w, 
-                  isMinimized: willMinimize, 
-                  zIndex: willMinimize ? w.zIndex : state.nextZIndex 
-                } 
-              : w
-          )
-        };
-      }),
-
-      toggleMaximize: (windowId) => set((state) => ({
-        windows: (state.windows ?? []).map(w => 
-          w.id === windowId ? { ...w, isMaximized: !w.isMaximized } : w
-        )
-      })),
-
-      updateWindowPosition: (windowId, x, y) => set((state) => ({
-        windows: (state.windows ?? []).map(w => 
-          w.id === windowId ? { ...w, x, y } : w
-        )
-      })),
-
-      updateWindowSize: (windowId, width, height) => set((state) => ({
-        windows: (state.windows ?? []).map(w => 
-          w.id === windowId ? { ...w, width, height } : w
-        )
-      })),
-
-      setLauncherOpen: (open) => set({ launcherOpen: open }),
-
-      toggleLauncher: () => set((state) => ({ launcherOpen: !state.launcherOpen })),
-
-      setIconPosition: (appId, x, y) => set((state) => {
-        const iconPositions = state.iconPositions ?? [];
-        const filtered = iconPositions.filter(p => p.appId !== appId);
-        return {
-          iconPositions: [...filtered, { appId, x, y }]
-        };
-      }),
-
-      resetIconPositions: () => set(() => {
-        const defaultAppIds = ['pc', 'browser', 'terminal', 'notes', 'ai', 'settings'];
-        const defaultLayout = defaultAppIds.map((appId, index) => ({
-          appId,
-          x: 24,
-          y: 24 + index * 96, 
-        }));
-        return { iconPositions: defaultLayout };
-      }),
-
-      addNotification: (message, icon = '🔔') => set((state) => {
-        const notifications = state.notifications ?? [];
-        const newNotif = { id: state.nextNotifId, message, icon };
-        return {
-          notifications: [newNotif, ...notifications],
-          nextNotifId: state.nextNotifId + 1
-        };
-      }),
-
-      removeNotification: (id) => set((state) => ({
-        notifications: (state.notifications ?? []).filter(n => n.id !== id)
-      })),
-
-      setClockSettings: (settings) => set((state) => ({ 
-        clockSettings: { ...state.clockSettings, ...settings } 
-      })),
-
-      setNotesContent: (content) => set({ notesContent: content }),
-
-      addAIMessage: (role, text) => set((state) => {
-        const messages = state.aiMessages ?? [];
-        const mappedRole = role === 'ai' ? 'assistant' : 'user';
-        return {
-          aiMessages: [...messages, { role: mappedRole, text }]
-        };
-      }),
-
-      addTerminalLine: (type, text) => set((state) => ({
-        terminalLines: [...(state.terminalLines ?? []), { type, text }]
-      })),
-
-      // ─── CUSTOMIZATION SETTERS ───
-      setWallpaperIndex: (index) => set({ 
-        wallpaperIndex: index, 
-        customWallpaper: null, 
-        customBackgroundGradient: null, 
-        customBackgroundColor: null 
-      }),
-      setCustomWallpaper: (wallpaperUrl) => set({ 
-        customWallpaper: wallpaperUrl, 
-        customBackgroundGradient: null, 
-        customBackgroundColor: null 
-      }),
-      setWallpaperStyle: (style) => set({ wallpaperStyle: style }),
-      setCustomBackgroundGradient: (gradient) => set({ 
-        customBackgroundGradient: gradient, 
-        customWallpaper: null, 
-        customBackgroundColor: null 
-      }),
-      setCustomBackgroundColor: (color) => set({ 
-        customBackgroundColor: color, 
-        customWallpaper: null, 
-        customBackgroundGradient: null 
-      }),
-      setAccentColor: (hexColor, name = 'Custom') => set({ accentColor: hexColor, accentName: name }),
-      setIsDarkMode: (enabled) => set({ isDarkMode: enabled }),
-      setDockPosition: (pos) => set({ dockPosition: pos }),
-      setDockSize: (size) => set({ dockSize: size }),
-      setDockAutoHide: (enabled) => set({ dockAutoHide: enabled }),
-      setUIOpacity: (opacity) => set({ uiOpacity: opacity }),
-      setUIBlur: (blur) => set({ uiBlur: blur }),
-      setUIBorderRadius: (radius) => set({ uiBorderRadius: radius }),
-      setSystemFontFamily: (font) => set({ systemFontFamily: font }),
-      setSystemFontSize: (size) => set({ systemFontSize: size }),
-      setSystemFontWeight: (weight) => set({ systemFontWeight: weight }),
-      setSystemSoundsEnabled: (enabled) => set({ systemSoundsEnabled: enabled }),
-      setSystemVolume: (volume) => set({ systemVolume: volume }),
+      return {
+        windows: [
+          ...state.windows,
+          {
+            id,
+            appId: id,
+            title: id,
+            minimized: false,
+            maximized: false,
+          },
+        ],
+        activeWindowId: id,
+      };
     }),
-    {
-      name: 'nexus-os-storage',
-      storage: createJSONStorage(() => (typeof window !== 'undefined' ? window.localStorage : (null as any))),
-      partialize: (state) => ({ 
-        windows: state.windows,          
-        activeWindowId: state.activeWindowId, 
-        nextWindowId: state.nextWindowId,     
-        nextZIndex: state.nextZIndex,         
-        iconPositions: state.iconPositions,
-        wallpaperIndex: state.wallpaperIndex,
-        customWallpaper: state.customWallpaper,
-        wallpaperStyle: state.wallpaperStyle,
-        customBackgroundGradient: state.customBackgroundGradient,
-        customBackgroundColor: state.customBackgroundColor,
-        accentColor: state.accentColor,
-        accentName: state.accentName,
-        isDarkMode: state.isDarkMode,
-        dockPosition: state.dockPosition,
-        dockSize: state.dockSize,
-        dockAutoHide: state.dockAutoHide,
-        uiOpacity: state.uiOpacity,
-        uiBlur: state.uiBlur,
-        uiBorderRadius: state.uiBorderRadius,
-        systemFontFamily: state.systemFontFamily,
-        systemFontSize: state.systemFontSize,
-        systemFontWeight: state.systemFontWeight,
-        systemSoundsEnabled: state.systemSoundsEnabled,
-        systemVolume: state.systemVolume,
-        clockSettings: state.clockSettings,
-        notesContent: state.notesContent,
-        aiMessages: state.aiMessages,
-        terminalLines: state.terminalLines,
-      }),
-    }
-  )
-);
+
+  closeWindow: (id) =>
+    set((state) => ({
+      windows: state.windows.filter(
+        (w) => w.id !== id
+      ),
+      activeWindowId:
+        state.activeWindowId === id
+          ? null
+          : state.activeWindowId,
+    })),
+
+  focusWindow: (id) =>
+    set((state) => ({
+      activeWindowId: id,
+      windows: state.windows.map((w) =>
+        w.id === id
+          ? { ...w, minimized: false }
+          : w
+      ),
+    })),
+
+  activeWindowId: null,
+
+  setActiveWindowId: (id) =>
+    set({ activeWindowId: id }),
+
+  toggleMinimize: (id) =>
+    set((state) => ({
+      windows: state.windows.map((w) =>
+        w.id === id
+          ? { ...w, minimized: !w.minimized }
+          : w
+      ),
+    })),
+
+  toggleMaximize: (id) =>
+    set((state) => ({
+      windows: state.windows.map((w) =>
+        w.id === id
+          ? { ...w, maximized: !w.maximized }
+          : w
+      ),
+    })),
+
+  updateWindowPosition: (id, position) =>
+    set((state) => ({
+      windows: state.windows.map((w) =>
+        w.id === id
+          ? { ...w, position }
+          : w
+      ),
+    })),
+
+  updateWindowSize: (id, size) =>
+    set((state) => ({
+      windows: state.windows.map((w) =>
+        w.id === id ? { ...w, size } : w
+      ),
+    })),
+
+  /* TERMINAL */
+
+  terminalLines: [],
+
+  addTerminalLine: (type, text) =>
+    set((state) => ({
+      terminalLines: [
+        ...state.terminalLines,
+        {
+          type,
+          text,
+        },
+      ],
+    })),
+
+  clearTerminal: () =>
+    set({
+      terminalLines: [],
+    }),
+
+  /* LAUNCHER */
+
+  launcherOpen: false,
+
+  toggleLauncher: () =>
+    set((state) => ({
+      launcherOpen: !state.launcherOpen,
+    })),
+
+  launcherPosition: "center",
+
+  setLauncherPosition: (pos) =>
+    set({ launcherPosition: pos }),
+
+  /* CLOCK */
+
+  currentTime: new Date(),
+
+  setTime: (time) =>
+    set({ currentTime: time }),
+
+  clockSettings: {
+    showSeconds: true,
+    militaryTime: false,
+    showDate: true,
+    dateFormat: "DD/MM/YYYY",
+    type: "hud",
+    color: "#ffffff",
+    glowColor: "#60a5fa33",
+    use24Hour: false,
+    fontSize: 52,
+  },
+
+  setClockSettings: (settings) =>
+    set((state) => ({
+      clockSettings: {
+        ...state.clockSettings,
+        ...settings,
+      },
+    })),
+
+  /* WALLPAPER */
+
+  wallpaperIndex: 0,
+
+  setWallpaperIndex: (index) =>
+    set({ wallpaperIndex: index }),
+
+  customWallpaper: null,
+
+  setCustomWallpaper: (wallpaper) =>
+    set({ customWallpaper: wallpaper }),
+
+  customBackgroundGradient:
+    "linear-gradient(to bottom right, #0f172a, #1e293b)",
+
+  customBackgroundColor: "#0f172a",
+
+  wallpaperStyle: "cover",
+
+  setWallpaperStyle: (style) =>
+    set({ wallpaperStyle: style }),
+
+  /* THEME */
+
+  isDarkMode: true,
+
+  setIsDarkMode: (value) =>
+    set({ isDarkMode: value }),
+
+  themeMode: "dark",
+
+  setThemeMode: (mode) =>
+    set({
+      themeMode: mode,
+      isDarkMode: mode !== "light",
+    }),
+
+  accentColor: "#60a5fa",
+
+  setAccentColor: (color) =>
+    set({ accentColor: color }),
+
+  /* TASKBAR */
+
+  taskbarHeight: 56,
+
+  setTaskbarHeight: (height) =>
+    set({ taskbarHeight: height }),
+
+  dockAutoHide: false,
+
+  setDockAutoHide: (value) =>
+    set({ dockAutoHide: value }),
+
+  dockPosition: "bottom",
+
+  setDockPosition: (pos) =>
+    set({ dockPosition: pos }),
+
+  dockStyle: "glass",
+
+  setDockStyle: (style) =>
+    set({ dockStyle: style }),
+
+  dockSize: 56,
+
+  setDockSize: (size) =>
+    set({ dockSize: size }),
+
+  /* UI */
+
+  systemFontFamily: "Inter",
+
+  setSystemFontFamily: (font) =>
+    set({ systemFontFamily: font }),
+
+  systemFontSize: 14,
+
+  setSystemFontSize: (size) =>
+    set({ systemFontSize: size }),
+
+  systemFontWeight: 400,
+
+  setSystemFontWeight: (weight) =>
+    set({ systemFontWeight: weight }),
+
+  uiBorderRadius: 16,
+
+  setUiBorderRadius: (radius) =>
+    set({ uiBorderRadius: radius }),
+
+  titlebarHeight: 40,
+
+  setTitlebarHeight: (height) =>
+    set({ titlebarHeight: height }),
+
+  uiOpacity: 0.75,
+
+  setUiOpacity: (opacity) =>
+    set({ uiOpacity: opacity }),
+
+  uiBlur: 20,
+
+  setUiBlur: (blur) =>
+    set({ uiBlur: blur }),
+
+  uiStyleProfile: "default",
+
+  setUiStyleProfile: (profile) =>
+    set({ uiStyleProfile: profile }),
+
+  windowAnimationCurve: "smooth",
+
+  setWindowAnimationCurve: (curve) =>
+    set({ windowAnimationCurve: curve }),
+
+  fontTransformStyle: "none",
+
+  setFontTransformStyle: (style) =>
+    set({ fontTransformStyle: style }),
+
+  cursorStyle: "default",
+
+  setCursorStyle: (style) =>
+    set({ cursorStyle: style }),
+
+  iconSize: 72,
+
+  setIconSize: (size) =>
+    set({ iconSize: size }),
+
+  showDesktopGrid: true,
+
+  setShowDesktopGrid: (value) =>
+    set({ showDesktopGrid: value }),
+
+  reducedMotion: false,
+
+  setReducedMotion: (value) =>
+    set({ reducedMotion: value }),
+
+  particleEffects: true,
+
+  setParticleEffects: (value) =>
+    set({ particleEffects: value }),
+
+  windowBorderGlow: true,
+
+  setWindowBorderGlow: (value) =>
+    set({ windowBorderGlow: value }),
+
+  /* DESKTOP ICONS */
+
+  iconPositions: {},
+
+  setIconPosition: (id, position) =>
+    set((state) => ({
+      iconPositions: {
+        ...state.iconPositions,
+        [id]: position,
+      },
+    })),
+
+  /* NOTIFICATIONS */
+
+  notifications: [],
+
+  addNotification: (
+    title,
+    message,
+    icon
+  ) =>
+    set((state) => ({
+      notifications: [
+        ...state.notifications,
+        {
+          id: crypto.randomUUID(),
+          title,
+          message,
+          icon,
+        },
+      ],
+    })),
+
+  removeNotification: (id) =>
+    set((state) => ({
+      notifications: state.notifications.filter(
+        (n) => n.id !== id
+      ),
+    })),
+}));

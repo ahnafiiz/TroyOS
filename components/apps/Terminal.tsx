@@ -71,7 +71,7 @@ export default function Terminal() {
 
     switch (baseCommand) {
       case 'help':
-        addTerminalLine('sys', 
+        addTerminalLine('system', 
 `Available Commands:
   help                    — Display system operations manual
   ls                      — List structures in current directory tree
@@ -286,7 +286,7 @@ export default function Terminal() {
       {/* Console Display Output Area */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {terminalLines.map((line, i) => {
-          const isUserCommand = line.type === 'user';
+          const isUserCommand = line.type === 'user' || line.type === 'input';
           const isSystemError = line.type === 'error';
 
           return (

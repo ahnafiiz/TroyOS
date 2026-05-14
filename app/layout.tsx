@@ -1,15 +1,17 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { 
-  Geist, 
-  Geist_Mono, 
-  Inter, 
-  Montserrat, 
-  Fira_Code, 
-  Playfair_Display, 
-  Syncopate 
+import {
+  Geist,
+  Geist_Mono,
+  Inter,
+  Montserrat,
+  Fira_Code,
+  Playfair_Display,
+  Syncopate
 } from "next/font/google";
 import "./globals.css";
+import "../styles/theme.css";
+import ThemeProvider from '@/components/ThemeProvider';
 
 // 1. Core Default Fonts
 const geistSans = Geist({
@@ -86,7 +88,7 @@ export default function RootLayout({
           fontFamily: 'var(--font-geist-sans), system-ui, sans-serif'
         }}
       >
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
