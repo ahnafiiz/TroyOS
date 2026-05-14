@@ -29,8 +29,26 @@ const BUILTIN_GAMES: Record<number, React.ReactNode> = {
 const GRID_STEP = 100;
 const snapToGrid = (val: number) => Math.round(val / GRID_STEP) * GRID_STEP;
 
-const CLOCK_WIDTH  = 250;
-const CLOCK_HEIGHT = 120;
+// Clock sizing — derived from font size, not fixed constants
+const CLOCK_H_PADDING = 85; // px each side
+const CLOCK_V_PADDING = 18; // px top/bottom
+
+function getClockWidth(fontSize: number, use24Hour: boolean, showSeconds = false): number {
+  const charWidth  = fontSize * 0.62;
+  const colonWidth = fontSize * 0.3;
+  const spaceWidth = fontSize * 0.25;
+  // "HH:MM" = 4 digits + 1 colon; seconds adds ":SS" = 1 colon + 2 digits
+  const secondsExtra = showSeconds ? colonWidth + 2 * charWidth : 0;
+  const amPmWidth    = use24Hour ? 0 : fontSize * 0.45 * 2 + spaceWidth; // "AM"/"PM" + space
+  const textWidth    = 4 * charWidth + colonWidth + secondsExtra + amPmWidth;
+  return Math.ceil(textWidth + CLOCK_H_PADDING * 2);
+}
+
+function getClockHeight(fontSize: number, showDate: boolean): number {
+  const timeLineHeight = fontSize * 1.1;
+  const dateLine       = showDate ? fontSize * 0.22 + 10 : 0;
+  return Math.ceil(timeLineHeight + dateLine + CLOCK_V_PADDING * 2);
+}
 
 function getAppContent(appId: string) {
   const gameId = parseInt(appId);
@@ -85,6 +103,8 @@ interface ClockStyleSettings {
   color: string;
   glowColor: string;
   use24Hour: boolean;
+  showDate: boolean;
+  showSeconds: boolean;
   fontFamily?: string;
   fontSize?: number;
 }
@@ -98,46 +118,88 @@ interface CustomClockProps {
 }
 
 function CustomizableClock({ timeStr, dateStr, settings, position, onDragEnd }: CustomClockProps) {
-  const [pos, setPos] = useState(position);
-  const [dragging, setDragging] = useState(false);
-  const dragOffset = useRef({ dx: 0, dy: 0 });
+  // Track live drag offset only — position comes from props (parent state)
+  const [dragOffset, setDragOffset] = useState<{ dx: number; dy: number } | null>(null);
+  const dragStartRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
 
-  useEffect(() => { setPos(position); }, [position]);
+  const fontSize = settings.fontSize ?? 52;
+  const clockW   = getClockWidth(fontSize, settings.use24Hour, settings.showSeconds);
+  const clockH   = getClockHeight(fontSize, settings.showDate);
+
+  // Derived display position — parent's committed pos + live drag delta
+  const displayPos = dragOffset
+    ? { x: position.x + dragOffset.dx, y: position.y + dragOffset.dy }
+    : position;
+
+  const isDragging = dragOffset !== null;
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    dragOffset.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y };
-    setDragging(true);
+    dragStartRef.current = { mx: e.clientX, my: e.clientY, px: position.x, py: position.y };
+    setDragOffset({ dx: 0, dy: 0 });
 
     const onMouseMove = (ev: MouseEvent) => {
-      setPos({ x: ev.clientX - dragOffset.current.dx, y: ev.clientY - dragOffset.current.dy });
+      if (!dragStartRef.current) return;
+      setDragOffset({
+        dx: ev.clientX - dragStartRef.current.mx,
+        dy: ev.clientY - dragStartRef.current.my,
+      });
     };
+
     const onMouseUp = (ev: MouseEvent) => {
-      setDragging(false);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
-      onDragEnd(
-        snapToGrid(ev.clientX - dragOffset.current.dx),
-        snapToGrid(ev.clientY - dragOffset.current.dy),
-      );
+      if (dragStartRef.current) {
+        const finalX = snapToGrid(dragStartRef.current.px + (ev.clientX - dragStartRef.current.mx));
+        const finalY = snapToGrid(dragStartRef.current.py + (ev.clientY - dragStartRef.current.my));
+        onDragEnd(finalX, finalY);
+      }
+      setDragOffset(null);
+      dragStartRef.current = null;
     };
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
   };
 
-  const getStylePreset = () => {
+  const getStylePreset = (): React.CSSProperties => {
     switch (settings.type) {
       case 'glass':
-        return { background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 30px 60px rgba(0,0,0,0.4)', padding: '24px 32px', borderRadius: 'var(--border-radius, 24px)' };
+        return {
+          background: 'rgba(255,255,255,0.02)',
+          backdropFilter: 'blur(30px)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          boxShadow: '0 30px 60px rgba(0,0,0,0.4)',
+          padding: `${CLOCK_V_PADDING}px ${CLOCK_H_PADDING}px`,
+          borderRadius: 'var(--border-radius, 24px)',
+        };
       case 'retro':
-        return { background: '#040508', border: `2px solid ${settings.color}`, boxShadow: `0 0 20px ${settings.glowColor}`, padding: '14px 22px', borderRadius: 'calc(var(--border-radius, 12px) * 0.75)' };
+        return {
+          background: '#040508',
+          border: `2px solid ${settings.color}`,
+          boxShadow: `0 0 20px ${settings.glowColor}`,
+          padding: `${CLOCK_V_PADDING}px ${CLOCK_H_PADDING}px`,
+          borderRadius: 'calc(var(--border-radius, 12px) * 0.75)',
+        };
       case 'minimal':
-        return { background: 'transparent', border: 'none', boxShadow: 'none', padding: '8px', borderRadius: 0 };
+        return {
+          background: 'transparent',
+          border: 'none',
+          boxShadow: 'none',
+          padding: `${CLOCK_V_PADDING}px ${CLOCK_H_PADDING}px`,
+          borderRadius: 0,
+        };
       case 'hud':
       default:
-        return { background: 'rgba(10, 12, 18, var(--ui-opacity, 0.5))', backdropFilter: 'blur(var(--ui-blur, 16px))', border: '1px solid rgba(255,255,255,0.04)', boxShadow: '0 16px 36px rgba(0,0,0,0.3)', padding: '18px 26px', borderRadius: 'var(--border-radius, 20px)' };
+        return {
+          background: 'rgba(10, 12, 18, var(--ui-opacity, 0.5))',
+          backdropFilter: 'blur(var(--ui-blur, 16px))',
+          border: '1px solid rgba(255,255,255,0.04)',
+          boxShadow: '0 16px 36px rgba(0,0,0,0.3)',
+          padding: `${CLOCK_V_PADDING}px ${CLOCK_H_PADDING}px`,
+          borderRadius: 'var(--border-radius, 20px)',
+        };
     }
   };
 
@@ -145,35 +207,55 @@ function CustomizableClock({ timeStr, dateStr, settings, position, onDragEnd }: 
     <div
       onMouseDown={onMouseDown}
       style={{
-        position: 'absolute', left: pos.x, top: pos.y,
-        width: CLOCK_WIDTH, height: CLOCK_HEIGHT,
+        position: 'absolute',
+        left: displayPos.x,
+        top: displayPos.y,
+        width: clockW,
+        height: clockH,
         zIndex: 5,
-        cursor: dragging ? 'grabbing' : 'grab',
+        cursor: isDragging ? 'grabbing' : 'grab',
         userSelect: 'none',
-        display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center',
-        transition: dragging ? 'none' : 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        transition: isDragging
+          ? 'none'
+          : 'width 0.3s cubic-bezier(0.16,1,0.3,1), height 0.3s cubic-bezier(0.16,1,0.3,1)',
         boxSizing: 'border-box',
         ...getStylePreset(),
       }}
     >
+      {/* Time */}
       <div style={{
-        fontSize: settings.fontSize || 52,
+        fontSize,
         fontWeight: settings.type === 'retro' ? 900 : 300,
-        letterSpacing: '-0.04em', lineHeight: 1,
+        letterSpacing: '-0.04em',
+        lineHeight: 1,
         color: settings.color,
         fontFamily: settings.fontFamily || 'inherit',
         textShadow: `0 0 16px ${settings.glowColor}`,
         fontVariantNumeric: 'tabular-nums',
+        whiteSpace: 'nowrap',
       }}>
         {timeStr}
       </div>
-      <div style={{
-        fontSize: 10, fontWeight: 700, marginTop: 6,
-        color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase',
-        letterSpacing: '0.15em', fontFamily: 'var(--font-geist-sans), sans-serif',
-      }}>
-        {dateStr}
-      </div>
+
+      {/* Date */}
+      {settings.showDate && (
+        <div style={{
+          fontSize: Math.max(9, fontSize * 0.18),
+          fontWeight: 700,
+          marginTop: Math.max(4, fontSize * 0.1),
+          color: 'rgba(255,255,255,0.4)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.15em',
+          fontFamily: 'var(--font-geist-sans), sans-serif',
+          whiteSpace: 'nowrap',
+        }}>
+          {dateStr}
+        </div>
+      )}
     </div>
   );
 }
@@ -189,40 +271,44 @@ interface DraggableIconProps {
 }
 
 function DraggableIcon({ appId, emoji, name, initialX, initialY, onDragEnd, onOpen }: DraggableIconProps) {
-  const [localPos, setLocalPos] = useState({ x: initialX, y: initialY });
-  const [dragging, setDragging] = useState(false);
-  const dragOffset = useRef({ dx: 0, dy: 0 });
-  const didDrag = useRef(false);
+  // Track live drag delta only — committed position comes from props
+  const [dragDelta, setDragDelta]   = useState<{ dx: number; dy: number } | null>(null);
+  const dragStartRef = useRef<{ mx: number; my: number } | null>(null);
+  const didDrag      = useRef(false);
 
-  useEffect(() => {
-    if (!dragging) setLocalPos({ x: initialX, y: initialY });
-  }, [initialX, initialY, dragging]);
+  const isDragging  = dragDelta !== null;
+  const displayX    = isDragging ? initialX + dragDelta.dx : initialX;
+  const displayY    = isDragging ? initialY + dragDelta.dy : initialY;
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    didDrag.current = false;
-    dragOffset.current = { dx: e.clientX - localPos.x, dy: e.clientY - localPos.y };
-    setDragging(true);
+    didDrag.current    = false;
+    dragStartRef.current = { mx: e.clientX, my: e.clientY };
+    setDragDelta({ dx: 0, dy: 0 });
 
     const onMove = (ev: MouseEvent) => {
+      if (!dragStartRef.current) return;
       didDrag.current = true;
-      setLocalPos({ x: ev.clientX - dragOffset.current.dx, y: ev.clientY - dragOffset.current.dy });
+      setDragDelta({
+        dx: ev.clientX - dragStartRef.current.mx,
+        dy: ev.clientY - dragStartRef.current.my,
+      });
     };
+
     const onUp = (ev: MouseEvent) => {
-      setDragging(false);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
-      const snappedX = snapToGrid(ev.clientX - dragOffset.current.dx);
-      const snappedY = snapToGrid(ev.clientY - dragOffset.current.dy);
-      if (didDrag.current) {
+      if (didDrag.current && dragStartRef.current) {
+        const snappedX = snapToGrid(initialX + (ev.clientX - dragStartRef.current.mx));
+        const snappedY = snapToGrid(initialY + (ev.clientY - dragStartRef.current.my));
         if (typeof onDragEnd === 'function') onDragEnd(appId, snappedX, snappedY);
-        else setLocalPos({ x: snappedX, y: snappedY });
-      } else {
-        setLocalPos({ x: initialX, y: initialY });
       }
+      setDragDelta(null);
+      dragStartRef.current = null;
     };
+
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
@@ -236,20 +322,20 @@ function DraggableIcon({ appId, emoji, name, initialX, initialY, onDragEnd, onOp
       }}
       style={{
         position: 'absolute',
-        left: dragging ? localPos.x : initialX,
-        top:  dragging ? localPos.y : initialY,
+        left: displayX,
+        top:  displayY,
         width: 84, height: 84,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        cursor: dragging ? 'grabbing' : 'grab',
+        cursor: isDragging ? 'grabbing' : 'grab',
         padding: '4px',
         borderRadius: 'var(--border-radius, 12px)',
-        background: dragging ? 'rgba(255,255,255,0.08)' : 'transparent',
-        border: `1px solid ${dragging ? 'rgba(255,255,255,0.1)' : 'transparent'}`,
-        backdropFilter: dragging ? 'blur(10px)' : 'none',
-        boxShadow: dragging ? '0 16px 32px rgba(0,0,0,0.4)' : 'none',
-        transform: dragging ? 'scale(1.04)' : 'scale(1)',
-        transition: dragging ? 'none' : 'all 0.23s cubic-bezier(0.16, 1, 0.3, 1)',
-        zIndex: dragging ? 9999 : 30,
+        background: isDragging ? 'rgba(255,255,255,0.08)' : 'transparent',
+        border: `1px solid ${isDragging ? 'rgba(255,255,255,0.1)' : 'transparent'}`,
+        backdropFilter: isDragging ? 'blur(10px)' : 'none',
+        boxShadow: isDragging ? '0 16px 32px rgba(0,0,0,0.4)' : 'none',
+        transform: isDragging ? 'scale(1.04)' : 'scale(1)',
+        transition: isDragging ? 'none' : 'all 0.23s cubic-bezier(0.16, 1, 0.3, 1)',
+        zIndex: isDragging ? 9999 : 30,
         userSelect: 'none',
       }}
       className="desktop-icon"
@@ -283,7 +369,7 @@ export default function Desktop() {
   const wallpaperIndex = store.wallpaperIndex ?? 0;
   const launcherOpen   = store.launcherOpen ?? false;
   const notifications  = store.notifications || [];
-  const currentTime    = store.currentTime || new Date();
+  const rawCurrentTime = store.currentTime || null;
   const iconPositions  = useOSStore((state) => state.iconPositions) ?? {};
 
   const openApp            = store.openApp;
@@ -294,23 +380,24 @@ export default function Desktop() {
   const [clockPosition, setClockPosition] = useState({ x: 900, y: 100 });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
 
-  const systemFontFamily         = store.systemFontFamily         || 'var(--font-geist-sans), sans-serif';
-  const systemFontSize           = store.systemFontSize           || 13;
-  const accentColor              = store.accentColor              || '#3b82f6';
-  const uiOpacity                = store.uiOpacity                ?? 0.75;
-  const uiBlur                   = store.uiBlur                   ?? 20;
-  const uiBorderRadius           = store.uiBorderRadius           ?? 16;
-  const taskbarHeight            = store.taskbarHeight            ?? 54;
-  const customWallpaper          = store.customWallpaper;
-  const wallpaperStyle           = store.wallpaperStyle           || 'fill';
-  const customBackgroundGradient = store.customBackgroundGradient;
-  const customBackgroundColor    = store.customBackgroundColor;
+  const systemFontFamily = store.systemFontFamily || 'var(--font-geist-sans), sans-serif';
+  const systemFontSize   = store.systemFontSize   || 13;
+  const accentColor      = store.accentColor      || '#3b82f6';
+  const uiOpacity        = store.uiOpacity        ?? 0.75;
+  const uiBlur           = store.uiBlur           ?? 20;
+  const uiBorderRadius   = store.uiBorderRadius   ?? 16;
+  const taskbarHeight    = store.taskbarHeight    ?? 54;
+  const customWallpaper  = store.customWallpaper;
+  const wallpaperStyle   = store.wallpaperStyle   || 'fill';
 
-  // ── Sync store values → CSS variables so every component reacts ──
+  // Fix: stabilise currentTime so useMemo deps don't change every render
+  const currentTime = useMemo(
+    () => (rawCurrentTime instanceof Date ? rawCurrentTime : new Date()),
+    [rawCurrentTime],
+  );
+
   useEffect(() => {
     const root = document.documentElement;
-
-    // Core UI
     root.style.setProperty('--ui-blur',       `${uiBlur}px`);
     root.style.setProperty('--ui-opacity',    String(uiOpacity));
     root.style.setProperty('--border-radius', `${uiBorderRadius}px`);
@@ -318,34 +405,24 @@ export default function Desktop() {
     root.style.setProperty('--font-size',     `${systemFontSize}px`);
     root.style.setProperty('--accent',        accentColor);
     root.style.setProperty('--accent-glow-soft', accentColor + '55');
-
-    // Taskbar / dock
     root.style.setProperty('--taskbar-offset', `${taskbarHeight + 12}px`);
-
-    // Glass system (used by Taskbar, notifications, context menu)
     root.style.setProperty('--glass-blur',     `${uiBlur}px`);
     root.style.setProperty('--glass-saturate', '160%');
     root.style.setProperty('--glass-bg',       `rgba(18,18,18,${uiOpacity})`);
     root.style.setProperty('--glass-bg-deep',  `rgba(10,12,18,${uiOpacity})`);
     root.style.setProperty('--glass-border',   'rgba(255,255,255,0.08)');
-
-    // Text hierarchy
     root.style.setProperty('--text-primary',   '#ffffff');
     root.style.setProperty('--text-secondary', 'rgba(255,255,255,0.65)');
     root.style.setProperty('--text-tertiary',  'rgba(255,255,255,0.35)');
-
-    // Borders
     root.style.setProperty('--border-subtle',  'rgba(255,255,255,0.05)');
     root.style.setProperty('--border-default', 'rgba(255,255,255,0.10)');
 
-    // Cursor
     if (store.cursorStyle && store.cursorStyle !== 'default') {
       root.style.setProperty('cursor', (store.cursorStyle as string) === 'dot' ? 'none' : store.cursorStyle);
     } else {
       root.style.removeProperty('cursor');
     }
 
-    // Reduced motion
     if (store.reducedMotion) {
       root.style.setProperty('--dur-fast',   '0ms');
       root.style.setProperty('--dur-normal', '0ms');
@@ -362,140 +439,71 @@ export default function Desktop() {
     store.cursorStyle, store.reducedMotion,
   ]);
 
- const parsedWallpaperStyle = useMemo(() => {
-  // ==========================================
-  // CUSTOM USER WALLPAPER
-  // ==========================================
-
-  if (customWallpaper) {
-    let size = 'cover';
-    let repeat = 'no-repeat';
-
-    if (wallpaperStyle === 'fit') {
-      size = 'contain';
+  const parsedWallpaperStyle = useMemo(() => {
+    if (customWallpaper) {
+      let size   = 'cover';
+      let repeat = 'no-repeat';
+      if (wallpaperStyle === 'fit')     { size = 'contain'; }
+      if (wallpaperStyle === 'stretch') { size = '100% 100%'; }
+      if (wallpaperStyle === 'tile')    { size = 'auto'; repeat = 'repeat'; }
+      return { backgroundImage: `url("${customWallpaper}")`, backgroundSize: size, backgroundRepeat: repeat, backgroundPosition: 'center' };
     }
 
-    if (wallpaperStyle === 'stretch') {
-      size = '100% 100%';
+    if (!wallpaper?.background) return { backgroundColor: '#0a0c12' };
+
+    const bgStr        = wallpaper.background || '';
+    const normalizedBg = bgStr.startsWith('/public/') ? bgStr.replace('/public/', '/') : bgStr;
+
+    const isImage =
+      /^https?:\/\//.test(normalizedBg) ||
+      normalizedBg.startsWith('/') ||
+      normalizedBg.startsWith('blob:') ||
+      normalizedBg.startsWith('data:image') ||
+      /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(normalizedBg);
+
+    if (isImage) {
+      return {
+        backgroundImage: `url("${normalizedBg}")`,
+        backgroundSize: wallpaperStyle === 'fit' ? 'contain' : wallpaperStyle === 'stretch' ? '100% 100%' : 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      };
     }
 
-    if (wallpaperStyle === 'tile') {
-      size = 'auto';
-      repeat = 'repeat';
+    if (normalizedBg.startsWith('linear-gradient') || normalizedBg.startsWith('radial-gradient')) {
+      return { backgroundImage: normalizedBg };
     }
 
-    return {
-      backgroundImage: `url("${customWallpaper}")`,
-      backgroundSize: size,
-      backgroundRepeat: repeat,
-      backgroundPosition: 'center',
-    };
-  }
+    return { backgroundColor: normalizedBg || '#000' };
+  }, [wallpaper, customWallpaper, wallpaperStyle]);
 
-  // ==========================================
-  // CUSTOM GRADIENT
-  // ==========================================
-
-  // if (customBackgroundGradient) {
-  //  return {
-  //   backgroundImage: customBackgroundGradient,
-  // };
-  //}
-
-  // ==========================================
-  // CUSTOM COLOR
-  // ==========================================
-
-  //if (customBackgroundColor) {
-  //  return {
-  //    backgroundColor: customBackgroundColor,
-  //  };
-  //}
-
-  // ==========================================
-  // DEFAULT FALLBACK
-  // ==========================================
-
- if (!wallpaper?.background) {
-  return {
-    backgroundColor: '#0a0c12',
-  };
-}
-
-const bgStr =
-  customWallpaper ||
-  wallpaper.background ||
-  '';
-
-const normalizedBg =
-  bgStr.startsWith('/public/')
-    ? bgStr.replace('/public/', '/')
-    : bgStr;
-
-const isImage =
-  /^https?:\/\//.test(normalizedBg) ||
-  normalizedBg.startsWith('/') ||
-  normalizedBg.startsWith('blob:') ||
-  normalizedBg.startsWith('data:image') ||
-  /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(normalizedBg);
-
-if (isImage) {
-  return {
-    backgroundImage: `url("${normalizedBg}")`,
-    backgroundSize:
-      wallpaperStyle === 'fit'
-        ? 'contain'
-        : wallpaperStyle === 'stretch'
-        ? '100% 100%'
-        : 'cover',
-
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat',
-  };
-}
-
-if (
-  normalizedBg.startsWith('linear-gradient') ||
-  normalizedBg.startsWith('radial-gradient')
-) {
-  return {
-    backgroundImage: normalizedBg,
-  };
-}
-
-return {
-  backgroundColor: normalizedBg || '#000',
-};
-
-  // ==========================================
-  // GRADIENTS / COLORS
-  // ==========================================
-
- 
-}, [
-  wallpaper,
-  customWallpaper,
-  wallpaperStyle,
- // customBackgroundGradient,
- // customBackgroundColor,
-]);
-
+  // Clock settings
   const clockSettings = useMemo((): ClockStyleSettings => ({
-    type:      (store.clockSettings?.type as ClockStyleSettings['type']) || 'hud',
-    color:     store.clockSettings?.color     || '#ffffff',
-    glowColor: store.clockSettings?.glowColor || accentColor + '33',
-    use24Hour: store.clockSettings?.use24Hour !== false,
-    fontSize:  store.clockSettings?.fontSize  || 52,
-    fontFamily: systemFontFamily,
+    type:        (store.clockSettings?.type as ClockStyleSettings['type']) || 'hud',
+    color:       store.clockSettings?.color      || '#ffffff',
+    glowColor:   store.clockSettings?.glowColor  || accentColor + '33',
+    use24Hour:   store.clockSettings?.use24Hour  !== false,
+    showDate:    store.clockSettings?.showDate   !== false,
+    showSeconds: !!store.clockSettings?.showSeconds,
+    fontSize:    store.clockSettings?.fontSize   || 52,
+    fontFamily:  systemFontFamily,
   }), [store.clockSettings, accentColor, systemFontFamily]);
 
-  const timeStr = useMemo(() => (currentTime instanceof Date ? currentTime : new Date()).toLocaleTimeString([], {
-    hour: '2-digit', minute: '2-digit', hour12: !clockSettings.use24Hour,
-  }), [currentTime, clockSettings.use24Hour]);
+  // Time string — respects use24Hour + showSeconds, uses stable currentTime
+  const timeStr = useMemo(() => {
+    return currentTime.toLocaleTimeString([], {
+      hour:   '2-digit',
+      minute: '2-digit',
+      ...(clockSettings.showSeconds ? { second: '2-digit' } : {}),
+      hour12: !clockSettings.use24Hour,
+    });
+  }, [currentTime, clockSettings.use24Hour, clockSettings.showSeconds]);
 
-  const dateStr = useMemo(() => (currentTime instanceof Date ? currentTime : new Date()).toLocaleDateString([], {
-    weekday: 'long', month: 'short', day: 'numeric',
-  }), [currentTime]);
+  // Date string — only computed when showDate is true
+  const dateStr = useMemo(() => {
+    if (!clockSettings.showDate) return '';
+    return currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+  }, [currentTime, clockSettings.showDate]);
 
   const getCleanGridPos = (index: number) => {
     if (typeof window === 'undefined') return { x: 30, y: 30 };
@@ -507,9 +515,12 @@ return {
   };
 
   const handleIconDragEnd = (appId: string, targetX: number, targetY: number) => {
+    const clockW = getClockWidth(clockSettings.fontSize ?? 52, clockSettings.use24Hour, clockSettings.showSeconds);
+    const clockH = getClockHeight(clockSettings.fontSize ?? 52, clockSettings.showDate);
+
     const hitsClock =
-      targetX >= clockPosition.x - 40 && targetX <= clockPosition.x + CLOCK_WIDTH &&
-      targetY >= clockPosition.y - 40 && targetY <= clockPosition.y + CLOCK_HEIGHT;
+      targetX >= clockPosition.x - 40 && targetX <= clockPosition.x + clockW &&
+      targetY >= clockPosition.y - 40 && targetY <= clockPosition.y + clockH;
 
     const posEntries = Object.entries(iconPositions);
     const isOccupied = posEntries.some(([id, pos]) =>
@@ -521,7 +532,7 @@ return {
       let nextX = targetX + shiftOffset;
       while (
         posEntries.some(([id, p]) => id !== appId && snapToGrid(p.x) === nextX && snapToGrid(p.y) === targetY) ||
-        (nextX >= clockPosition.x - 40 && nextX <= clockPosition.x + CLOCK_WIDTH && targetY >= clockPosition.y - 40 && targetY <= clockPosition.y + CLOCK_HEIGHT)
+        (nextX >= clockPosition.x - 40 && nextX <= clockPosition.x + clockW && targetY >= clockPosition.y - 40 && targetY <= clockPosition.y + clockH)
       ) {
         shiftOffset += GRID_STEP;
         nextX = targetX + shiftOffset;
@@ -533,11 +544,14 @@ return {
   };
 
   const handleClockDragEnd = (targetX: number, targetY: number) => {
+    const clockW = getClockWidth(clockSettings.fontSize ?? 52, clockSettings.use24Hour, clockSettings.showSeconds);
+    const clockH = getClockHeight(clockSettings.fontSize ?? 52, clockSettings.showDate);
+
     const checkAt = (checkX: number) => APPS.some((app, index) => {
       const saved = iconPositions[app.id];
       const pos = saved ? { x: snapToGrid(saved.x), y: snapToGrid(saved.y) } : getCleanGridPos(index);
-      return pos.x >= checkX - 40 && pos.x <= checkX + CLOCK_WIDTH &&
-             pos.y >= targetY - 40 && pos.y <= targetY + CLOCK_HEIGHT;
+      return pos.x >= checkX - 40 && pos.x <= checkX + clockW &&
+             pos.y >= targetY - 40 && pos.y <= targetY + clockH;
     });
 
     if (checkAt(targetX)) {
@@ -582,26 +596,21 @@ return {
       `}</style>
 
       {/* Wallpaper */}
-     {/* Wallpaper */}
-<div
-  id="troy-desktop-bg"
-  style={{
-    position: 'absolute',
-    inset: 0,
-
-    transition:
-    'background-color 0.8s cubic-bezier(0.16,1,0.3,1), ' +
-    'background-image 0.8s cubic-bezier(0.16,1,0.3,1), ' +
-      'filter 0.4s ease',
+      <div
+        id="troy-desktop-bg"
+        style={{
+          position: 'absolute', inset: 0,
+          transition:
+            'background-color 0.8s cubic-bezier(0.16,1,0.3,1), ' +
+            'background-image 0.8s cubic-bezier(0.16,1,0.3,1), ' +
+            'filter 0.4s ease',
           willChange: 'background-image, background-color',
-
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat',
-
-    ...parsedWallpaperStyle,
-  }}
-/>
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          ...parsedWallpaperStyle,
+        }}
+      />
 
       {/* Grid overlay */}
       {!customWallpaper && (
@@ -617,7 +626,13 @@ return {
       )}
 
       {/* Clock */}
-      <CustomizableClock timeStr={timeStr} dateStr={dateStr} settings={clockSettings} position={clockPosition} onDragEnd={handleClockDragEnd} />
+      <CustomizableClock
+        timeStr={timeStr}
+        dateStr={dateStr}
+        settings={clockSettings}
+        position={clockPosition}
+        onDragEnd={handleClockDragEnd}
+      />
 
       {/* Desktop icons */}
       {APPS.map((app, index) => {

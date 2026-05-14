@@ -29,14 +29,14 @@ export interface AccentColor {
   {
     id: 0,
     name: 'base - 1',
-    background: '/wallpapers/Stock-1.jpg',
+    background: 'https://blogger.googleusercontent.com/img/a/AVvXsEhcKwI-zoO6Gb1kDJ3E6DgZpcDdilvJQBgGJDQK9XXHkOJUH4jyb2acHNMR2aECkWHqn2RP8K2Uii5IKkV7S2eYNO0FCL-3DNdGvLyoPrNULqNrhVhlhVBQMDX8SUChrJdPT9g89caLFWLRI0vGYaGHbVY6SXHT2QdqeT4IzWdoaKIX6kAlU9Lsc0zMXu0=s16000',
     gridColor: 'rgba(255,255,255,0.05)'
   },
 
   {
     id: 1,
     name: 'base - 2',
-    background: '/wallpapers/Stock-2.jpg',
+    background: 'https://images.alphacoders.com/127/thumb-1920-1276648.png',
     gridColor: 'rgba(255,255,255,0.05)'
   },
 

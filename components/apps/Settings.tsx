@@ -2,16 +2,24 @@
 
 import React, { useState, useRef } from 'react';
 import { useOSStore } from '@/store/useOSStore';
-import type { Theme } from '@/store/useOSStore';
+import type {
+  OSState,
+  ClockSettings,
+  DockPosition,
+  DockStyle,
+  LauncherPosition,
+  CursorStyle,
+  WindowAnimationCurve,
+} from '@/store/useOSStore';
 import { WALLPAPERS } from '@/config/themes';
 
 const PREMIUM_FONTS = [
-  { name: 'Geist Sans', value: 'var(--font-geist-sans), sans-serif', preview: 'Aa' },
-  { name: 'Inter', value: 'var(--font-inter), sans-serif', preview: 'Aa' },
-  { name: 'Montserrat', value: 'var(--font-montserrat), sans-serif', preview: 'Aa' },
-  { name: 'Fira Code', value: 'var(--font-fira-code), monospace', preview: 'Aa' },
-  { name: 'Syncopate', value: 'var(--font-syncopate), sans-serif', preview: 'Aa' },
-  { name: 'Playfair Display', value: 'var(--font-playfair), Georgia, serif', preview: 'Aa' },
+  { name: 'Geist Sans',       value: 'var(--font-geist-sans), sans-serif',    preview: 'Aa' },
+  { name: 'Inter',            value: 'var(--font-inter), sans-serif',          preview: 'Aa' },
+  { name: 'Montserrat',       value: 'var(--font-montserrat), sans-serif',     preview: 'Aa' },
+  { name: 'Fira Code',        value: 'var(--font-fira-code), monospace',       preview: 'Aa' },
+  { name: 'Syncopate',        value: 'var(--font-syncopate), sans-serif',      preview: 'Aa' },
+  { name: 'Playfair Display', value: 'var(--font-playfair), Georgia, serif',   preview: 'Aa' },
 ];
 
 const ACCENT_PRESETS = [
@@ -28,10 +36,10 @@ const ACCENT_PRESETS = [
 ];
 
 const CLOCK_PRESETS = [
-  { id: 'hud',     name: 'HUD',       icon: '⬡' },
-  { id: 'glass',   name: 'Aero Glass',icon: '◈' },
-  { id: 'retro',   name: 'Synthwave', icon: '⬢' },
-  { id: 'minimal', name: 'Minimal',   icon: '◻' },
+  { id: 'hud',     name: 'HUD',        icon: '⬡' },
+  { id: 'glass',   name: 'Aero Glass', icon: '◈' },
+  { id: 'retro',   name: 'Synthwave',  icon: '⬢' },
+  { id: 'minimal', name: 'Minimal',    icon: '◻' },
 ];
 
 const TASKBAR_POSITIONS = [
@@ -47,10 +55,10 @@ const CURSOR_STYLES = [
 ];
 
 const WINDOW_ANIMATIONS = [
-  { id: 'smooth',    name: 'Smooth Scale' },
-  { id: 'slide',     name: 'Slide In' },
-  { id: 'fade',      name: 'Fade' },
-  { id: 'none',      name: 'Instant' },
+  { id: 'smooth', name: 'Smooth Scale' },
+  { id: 'slide',  name: 'Slide In' },
+  { id: 'fade',   name: 'Fade' },
+  { id: 'none',   name: 'Instant' },
 ];
 
 const NOTIFICATION_POSITIONS = [
@@ -77,9 +85,78 @@ const THEMES = WALLPAPERS as WallpaperEntry[];
 
 type TabId = 'canvas' | 'clock' | 'engine' | 'desktop' | 'advanced';
 
+// ── Generic setter helper ────────────────────────────────────────────────────
+// Uses a loose runtime lookup so TypeScript doesn't need to resolve every
+// setter name statically. This avoids the TS2345 errors for fields like
+// iconSize, showDesktopGrid, taskbarHeight, etc. that exist on the store at
+// runtime but whose setter names don't match the narrow SetterKey type.
+type SetSetting = (key: string, value: unknown) => void;
+
+// ── Sub-component prop types ─────────────────────────────────────────────────
+
+interface AppearanceTabProps {
+  accentColor: string;
+  isDarkMode: boolean;
+  store: OSState;
+  tempWallpaperUrl: string;
+  setTempWallpaperUrl: (v: string) => void;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  handleLocalImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+interface ClockTabProps {
+  clockSettings: ClockSettings;
+  updateClockSetting: (key: keyof ClockSettings, value: ClockSettings[keyof ClockSettings]) => void;
+  clockFontSize: number;
+  accentColor: string;
+}
+
+interface DesktopTabProps {
+  iconSize: number;
+  showDesktopGrid: boolean;
+  taskbarPosition: DockPosition;
+  taskbarHeight: number;
+  dockStyle: DockStyle;
+  notificationPosition: string;
+  launcherPosition: LauncherPosition;
+  setSetting: SetSetting;
+  store: OSState;
+  accentColor: string;
+}
+
+interface SystemTabProps {
+  systemFontFamily: string;
+  systemFontSize: number;
+  uiBlur: number;
+  uiOpacity: number;
+  borderRadius: number;
+  titlebarHeight: number;
+  windowBorderGlow: boolean;
+  windowAnimation: WindowAnimationCurve;
+  store: OSState;
+  setSetting: SetSetting;
+  accentColor: string;
+}
+
+interface AdvancedTabProps {
+  reducedMotion: boolean;
+  particleEffects: boolean;
+  cursorStyle: CursorStyle;
+  setSetting: SetSetting;
+  accentColor: string;
+}
+
+interface ToggleProps {
+  active: boolean;
+  onToggle: () => void;
+  accentColor: string;
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
+
 export default function Settings() {
   const store = useOSStore();
-  const [activeTab, setActiveTab] = useState<TabId>('canvas');
+  const [activeTab, setActiveTab]           = useState<TabId>('canvas');
   const [tempWallpaperUrl, setTempWallpaperUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,37 +168,44 @@ export default function Settings() {
   const borderRadius     = store.uiBorderRadius   ?? 16;
   const isDarkMode       = store.isDarkMode       ?? true;
 
-  const clockSettings = store.clockSettings || {
-    type: 'hud',
-    color: '#ffffff',
-    glowColor: 'rgba(59, 130, 246, 0.5)',
-    use24Hour: true,
+  const clockSettings: ClockSettings = store.clockSettings || {
+    type:        'hud',
+    color:       '#ffffff',
+    glowColor:   'rgba(59, 130, 246, 0.5)',
+    use24Hour:   true,
     showSeconds: false,
-    showDate: true,
+    showDate:    true,
+    militaryTime: false,
+    dateFormat:  'DD/MM/YYYY',
   };
 
-  const taskbarPosition      = store.dockPosition          || 'bottom';
-  const dockStyle            = store.dockStyle             || 'glass';
-  const windowAnimation      = store.windowAnimationCurve  || 'smooth';
-  const notificationPosition = (store as any).notificationPosition || 'top-right';
-  const showDesktopGrid      = store.showDesktopGrid       ?? true;
-  const iconSize             = store.iconSize              ?? 72;
-  const cursorStyle          = store.cursorStyle           || 'default';
-  const particleEffects      = store.particleEffects       ?? false;
-  const reducedMotion        = store.reducedMotion         ?? false;
-  const windowBorderGlow     = store.windowBorderGlow      ?? true;
-  const taskbarHeight        = store.taskbarHeight         ?? 54;
-  const clockFontSize        = clockSettings.fontSize      || 48;
-  const titlebarHeight       = store.titlebarHeight        ?? 40;
-  const launcherPosition     = store.launcherPosition      || 'center';
+  const taskbarPosition      = store.dockPosition         || 'bottom';
+  const dockStyle            = store.dockStyle            || 'glass';
+  const windowAnimation      = store.windowAnimationCurve || 'smooth';
+  const notificationPosition = 'top-right';
+  const showDesktopGrid      = store.showDesktopGrid      ?? true;
+  const iconSize             = store.iconSize             ?? 72;
+  const cursorStyle          = store.cursorStyle          || 'default';
+  const particleEffects      = store.particleEffects      ?? false;
+  const reducedMotion        = store.reducedMotion        ?? false;
+  const windowBorderGlow     = store.windowBorderGlow     ?? true;
+  const taskbarHeight        = store.taskbarHeight        ?? 54;
+  const clockFontSize        = clockSettings.fontSize     || 48;
+  const titlebarHeight       = store.titlebarHeight       ?? 40;
+  const launcherPosition     = store.launcherPosition     || 'center';
 
-  const updateClockSetting = (key: string, value: any) => {
+  const updateClockSetting = (
+    key: keyof ClockSettings,
+    value: ClockSettings[keyof ClockSettings],
+  ) => {
     store.setClockSettings({ ...clockSettings, [key]: value });
   };
 
-  const setSetting = (key: string, value: any) => {
-    const setter = (store as any)[`set${key.charAt(0).toUpperCase() + key.slice(1)}`];
-    if (typeof setter === 'function') setter(value);
+  // Generic setter — looks up `set<Key>` dynamically; no TS2345 issues.
+  const setSetting: SetSetting = (key, value) => {
+    const setterName = `set${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+    const setter = (store as unknown as Record<string, unknown>)[setterName];
+    if (typeof setter === 'function') (setter as (v: unknown) => void)(value);
   };
 
   const handleLocalImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -160,66 +244,70 @@ export default function Settings() {
     { id: 'advanced', icon: '🔧', label: 'Advanced' },
   ];
 
-  // Helper function to render content based on active tab
   const renderTabContent = () => {
     switch (activeTab) {
       case 'canvas':
-        return <AppearanceTab 
-          accentColor={accentColor}
-          isDarkMode={isDarkMode}
-          store={store}
-          tempWallpaperUrl={tempWallpaperUrl}
-          setTempWallpaperUrl={setTempWallpaperUrl}
-          fileInputRef={fileInputRef}
-          handleLocalImageUpload={handleLocalImageUpload}
-        />;
-      
+        return (
+          <AppearanceTab
+            accentColor={accentColor}
+            isDarkMode={isDarkMode}
+            store={store}
+            tempWallpaperUrl={tempWallpaperUrl}
+            setTempWallpaperUrl={setTempWallpaperUrl}
+            fileInputRef={fileInputRef}
+            handleLocalImageUpload={handleLocalImageUpload}
+          />
+        );
       case 'clock':
-        return <ClockTab
-          clockSettings={clockSettings}
-          updateClockSetting={updateClockSetting}
-          clockFontSize={clockFontSize}
-          accentColor={accentColor}
-        />;
-      
+        return (
+          <ClockTab
+            clockSettings={clockSettings}
+            updateClockSetting={updateClockSetting}
+            clockFontSize={clockFontSize}
+            accentColor={accentColor}
+          />
+        );
       case 'desktop':
-        return <DesktopTab
-          iconSize={iconSize}
-          showDesktopGrid={showDesktopGrid}
-          taskbarPosition={taskbarPosition}
-          taskbarHeight={taskbarHeight}
-          dockStyle={dockStyle}
-          notificationPosition={notificationPosition}
-          launcherPosition={launcherPosition}
-          setSetting={setSetting}
-          store={store}
-          accentColor={accentColor}
-        />;
-      
+        return (
+          <DesktopTab
+            iconSize={iconSize}
+            showDesktopGrid={showDesktopGrid}
+            taskbarPosition={taskbarPosition}
+            taskbarHeight={taskbarHeight}
+            dockStyle={dockStyle}
+            notificationPosition={notificationPosition}
+            launcherPosition={launcherPosition}
+            setSetting={setSetting}
+            store={store}
+            accentColor={accentColor}
+          />
+        );
       case 'engine':
-        return <SystemTab
-          systemFontFamily={systemFontFamily}
-          systemFontSize={systemFontSize}
-          uiBlur={uiBlur}
-          uiOpacity={uiOpacity}
-          borderRadius={borderRadius}
-          titlebarHeight={titlebarHeight}
-          windowBorderGlow={windowBorderGlow}
-          windowAnimation={windowAnimation}
-          store={store}
-          setSetting={setSetting}
-          accentColor={accentColor}
-        />;
-      
+        return (
+          <SystemTab
+            systemFontFamily={systemFontFamily}
+            systemFontSize={systemFontSize}
+            uiBlur={uiBlur}
+            uiOpacity={uiOpacity}
+            borderRadius={borderRadius}
+            titlebarHeight={titlebarHeight}
+            windowBorderGlow={windowBorderGlow}
+            windowAnimation={windowAnimation}
+            store={store}
+            setSetting={setSetting}
+            accentColor={accentColor}
+          />
+        );
       case 'advanced':
-        return <AdvancedTab
-          reducedMotion={reducedMotion}
-          particleEffects={particleEffects}
-          cursorStyle={cursorStyle}
-          setSetting={setSetting}
-          accentColor={accentColor}
-        />;
-      
+        return (
+          <AdvancedTab
+            reducedMotion={reducedMotion}
+            particleEffects={particleEffects}
+            cursorStyle={cursorStyle}
+            setSetting={setSetting}
+            accentColor={accentColor}
+          />
+        );
       default:
         return null;
     }
@@ -335,7 +423,7 @@ export default function Settings() {
         </button>
       </div>
 
-      {/* Content - Now using helper function */}
+      {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px 24px', display: 'flex', flexDirection: 'column', gap: 0 }}>
         {renderTabContent()}
       </div>
@@ -343,8 +431,13 @@ export default function Settings() {
   );
 }
 
-// Separate component for Appearance tab
-function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTempWallpaperUrl, fileInputRef, handleLocalImageUpload }: any) {
+// ── Tab components ────────────────────────────────────────────────────────────
+
+function AppearanceTab({
+  accentColor, isDarkMode, store,
+  tempWallpaperUrl, setTempWallpaperUrl,
+  fileInputRef, handleLocalImageUpload,
+}: AppearanceTabProps) {
   return (
     <>
       <p className="s-section-title">Accent Color</p>
@@ -385,44 +478,36 @@ function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTe
       <p className="s-section-title">Wallpaper</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
         {THEMES.map((wp, i) => (
-         <div
-  key={i}
-  className={`wallpaper-thumb ${
-    store.wallpaperIndex === i ? 'wallpaper-thumb-active' : ''
-  }`}
-  onClick={() => {
-    store.setWallpaperIndex(i);
-    store.setCustomWallpaper('');
-  }}
-style={{
-  position: 'relative',
-  minHeight: 52,
-
-  background:
-    wp.background &&
-    !wp.background.startsWith('http') &&
-    !wp.background.startsWith('/') &&
-    !wp.background.startsWith('blob:') &&
-    !wp.background.startsWith('data:image')
-      ? wp.background
-      : undefined,
-
-  backgroundImage:
-    wp.background &&
-    (
-      wp.background.startsWith('http') ||
-      wp.background.startsWith('/') ||
-      wp.background.startsWith('blob:') ||
-      wp.background.startsWith('data:image')
-    )
-      ? `url("${wp.background}")`
-      : undefined,
-
-  backgroundSize: 'cover',
-  backgroundPosition: 'center',
-  backgroundRepeat: 'no-repeat',
-}}
->
+          <div
+            key={i}
+            className={`wallpaper-thumb ${store.wallpaperIndex === i ? 'wallpaper-thumb-active' : ''}`}
+            onClick={() => { store.setWallpaperIndex(i); store.setCustomWallpaper(''); }}
+            style={{
+              position: 'relative',
+              minHeight: 52,
+              background:
+                wp.background &&
+                !wp.background.startsWith('http') &&
+                !wp.background.startsWith('/') &&
+                !wp.background.startsWith('blob:') &&
+                !wp.background.startsWith('data:image')
+                  ? wp.background
+                  : undefined,
+              backgroundImage:
+                wp.background &&
+                (
+                  wp.background.startsWith('http') ||
+                  wp.background.startsWith('/') ||
+                  wp.background.startsWith('blob:') ||
+                  wp.background.startsWith('data:image')
+                )
+                  ? `url("${wp.background}")`
+                  : undefined,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+            }}
+          >
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', padding: 6 }}>
               <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>{wp.name || `Theme ${i + 1}`}</span>
             </div>
@@ -454,8 +539,7 @@ style={{
   );
 }
 
-// Separate component for Clock tab
-function ClockTab({ clockSettings, updateClockSetting, clockFontSize, accentColor }: any) {
+function ClockTab({ clockSettings, updateClockSetting, clockFontSize, accentColor }: ClockTabProps) {
   return (
     <>
       <p className="s-section-title">Clock Style</p>
@@ -517,8 +601,11 @@ function ClockTab({ clockSettings, updateClockSetting, clockFontSize, accentColo
   );
 }
 
-// Separate component for Desktop tab
-function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight, dockStyle, notificationPosition, launcherPosition, setSetting, store, accentColor }: any) {
+function DesktopTab({
+  iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
+  dockStyle, notificationPosition, launcherPosition,
+  setSetting, store, accentColor,
+}: DesktopTabProps) {
   return (
     <>
       <p className="s-section-title">Icon Layout</p>
@@ -542,7 +629,7 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
           <span className="s-label">Position</span>
           <div style={{ display: 'flex', gap: 6 }}>
             {TASKBAR_POSITIONS.map(p => (
-              <button key={p.id} onClick={() => store.setDockPosition(p.id as any)}
+              <button key={p.id} onClick={() => store.setDockPosition(p.id as DockPosition)}
                 className={`s-chip ${taskbarPosition === p.id ? 's-chip-active' : 's-chip-inactive'}`}
                 style={{ flex: 1, border: 'none' }}
               >{p.icon} {p.name}</button>
@@ -560,7 +647,7 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
           <span className="s-label">Dock Style</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
             {DOCK_STYLES.map(d => (
-              <button key={d.id} onClick={() => store.setDockStyle(d.id as any)}
+              <button key={d.id} onClick={() => store.setDockStyle(d.id as DockStyle)}
                 className={`s-chip ${dockStyle === d.id ? 's-chip-active' : 's-chip-inactive'}`}
                 style={{ border: 'none' }}
               >{d.name}</button>
@@ -575,7 +662,7 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
           <span className="s-label">Position</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
             {NOTIFICATION_POSITIONS.map(p => (
-              <button key={p.id} onClick={() => setSetting('notificationPosition', p.id)}
+              <button key={p.id}
                 className={`s-chip ${notificationPosition === p.id ? 's-chip-active' : 's-chip-inactive'}`}
                 style={{ border: 'none', fontSize: 10 }}
               >{p.name}</button>
@@ -589,8 +676,8 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
           <span className="s-label">Launcher Position</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
-            {(['bottom-left', 'bottom-right', 'center', 'top-left'] as const).map(pos => (
-              <button key={pos} onClick={() => store.setLauncherPosition(pos as any)}
+            {(['bottom-left', 'bottom-right', 'center', 'top-left'] as LauncherPosition[]).map(pos => (
+              <button key={pos} onClick={() => store.setLauncherPosition(pos)}
                 className={`s-chip ${launcherPosition === pos ? 's-chip-active' : 's-chip-inactive'}`}
                 style={{ border: 'none', fontSize: 10 }}
               >{pos.replace('-', ' ')}</button>
@@ -602,8 +689,11 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
   );
 }
 
-// Separate component for System tab
-function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, borderRadius, titlebarHeight, windowBorderGlow, windowAnimation, store, setSetting, accentColor }: any) {
+function SystemTab({
+  systemFontFamily, systemFontSize, uiBlur, uiOpacity,
+  borderRadius, titlebarHeight, windowBorderGlow, windowAnimation,
+  store, setSetting, accentColor,
+}: SystemTabProps) {
   return (
     <>
       <p className="s-section-title">Typography</p>
@@ -676,7 +766,7 @@ function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, border
       <p className="s-section-title">Animation Style</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
         {WINDOW_ANIMATIONS.map(a => (
-          <button key={a.id} onClick={() => store.setWindowAnimationCurve(a.id)}
+          <button key={a.id} onClick={() => store.setWindowAnimationCurve(a.id as WindowAnimationCurve)}
             className={`s-chip ${windowAnimation === a.id ? 's-chip-active' : 's-chip-inactive'}`}
             style={{ border: 'none' }}>{a.name}</button>
         ))}
@@ -685,8 +775,7 @@ function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, border
   );
 }
 
-// Separate component for Advanced tab
-function AdvancedTab({ reducedMotion, particleEffects, cursorStyle, setSetting, accentColor }: any) {
+function AdvancedTab({ reducedMotion, particleEffects, cursorStyle, setSetting, accentColor }: AdvancedTabProps) {
   return (
     <>
       <p className="s-section-title">Accessibility</p>
@@ -711,7 +800,7 @@ function AdvancedTab({ reducedMotion, particleEffects, cursorStyle, setSetting, 
           <span className="s-label">Cursor Style</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
             {CURSOR_STYLES.map(c => (
-              <button key={c.id} onClick={() => setSetting('cursorStyle', c.id)}
+              <button key={c.id} onClick={() => setSetting('cursorStyle', c.id as CursorStyle)}
                 className={`s-chip ${cursorStyle === c.id ? 's-chip-active' : 's-chip-inactive'}`}
                 style={{ border: 'none', fontSize: 10 }}>{c.name}</button>
             ))}
@@ -738,7 +827,7 @@ function AdvancedTab({ reducedMotion, particleEffects, cursorStyle, setSetting, 
   );
 }
 
-function Toggle({ active, onToggle, accentColor }: { active: boolean; onToggle: () => void; accentColor: string }) {
+function Toggle({ active, onToggle, accentColor }: ToggleProps) {
   return (
     <div className="s-toggle" onClick={onToggle} style={{ background: active ? accentColor : 'rgba(255,255,255,0.12)' }}>
       <div className="s-toggle-thumb" style={{ left: active ? '21px' : '3px' }} />
