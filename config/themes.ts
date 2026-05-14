@@ -27,30 +27,44 @@ export interface AccentColor {
 
   export const WALLPAPERS = [
   {
-    id: 5,
-    name: 'Pink Clouds',
-    background: '/wallpapers/pink-clouds.jpg',
+    id: 0,
+    name: 'base - 1',
+    background: '/wallpapers/Stock-1.jpg',
     gridColor: 'rgba(255,255,255,0.05)'
   },
 
   {
     id: 1,
+    name: 'base - 2',
+    background: '/wallpapers/Stock-2.jpg',
+    gridColor: 'rgba(255,255,255,0.05)'
+  },
+
+  {
+    id: 2,
     name: 'Green Nature',
     background: 'https://images.pexels.com/photos/1072179/pexels-photo-1072179.jpeg',
     gridColor: 'rgba(255,255,255,0.05)'
   },
 
    {
-    id: 2,
+    id: 3,
     name: 'Mclaren F1 Sao Paulo',
     background: 'https://images.pexels.com/photos/34835669/pexels-photo-34835669.jpeg',
     gridColor: 'rgba(255,255,255,0.05)'
   },
 
   {
-    id: 3,
+    id: 4,
     name: 'Formula 1',
     background: 'https://images.pexels.com/photos/34722679/pexels-photo-34722679.jpeg',
+    gridColor: 'rgba(255,255,255,0.05)'
+  },
+
+    {
+    id: 5,
+    name: 'Pink Clouds',
+    background: '/wallpapers/pink-clouds.jpg',
     gridColor: 'rgba(255,255,255,0.05)'
   },
 ]

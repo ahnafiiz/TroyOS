@@ -68,7 +68,7 @@ export function findFreeGridCell(
 }
 
 export default function DesktopIcon({ id, name, emoji, x, y, onDragEnd, onOpen }: DesktopIconProps) {
-  const { setIconPosition, iconSize } = useOSStore();
+  const { iconSize } = useOSStore();
   const size = iconSize ?? 72;
 
   const dragStart  = useRef({ mouseX: 0, mouseY: 0, iconX: 0, iconY: 0 });
@@ -76,14 +76,23 @@ export default function DesktopIcon({ id, name, emoji, x, y, onDragEnd, onOpen }
   const [isDragging, setIsDragging] = useState(false);
   const [localX, setLocalX] = useState(x);
   const [localY, setLocalY] = useState(y);
+  
+  // Use ref to track previous values and prevent unnecessary updates
+  const prevPos = useRef({ x, y });
 
   // Keep local position in sync with prop when not dragging
-  React.useEffect(() => { setLocalX(x); setLocalY(y); }, [x, y]);
+  React.useEffect(() => {
+    if (!isDragging && (prevPos.current.x !== x || prevPos.current.y !== y)) {
+      setLocalX(x);
+      setLocalY(y);
+      prevPos.current = { x, y };
+    }
+  }, [x, y, isDragging]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     hasDragged.current = false;
-    dragStart.current = { mouseX: e.clientX, mouseY: e.clientY, iconX: x, iconY: y };
+    dragStart.current = { mouseX: e.clientX, mouseY: e.clientY, iconX: localX, iconY: localY };
     setIsDragging(true);
 
     const onMove = (ev: MouseEvent) => {
@@ -111,7 +120,7 @@ export default function DesktopIcon({ id, name, emoji, x, y, onDragEnd, onOpen }
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     e.preventDefault();
-  }, [id, x, y, size, onDragEnd]);
+  }, [id, localX, localY, size, onDragEnd]);
 
   const handleDoubleClick = useCallback(() => {
     if (!hasDragged.current) onOpen();
@@ -138,7 +147,7 @@ export default function DesktopIcon({ id, name, emoji, x, y, onDragEnd, onOpen }
         userSelect: 'none',
         transition: isDragging ? 'none' : 'left var(--dur-normal) var(--ease-spring), top var(--dur-normal) var(--ease-spring)',
         transform: isDragging ? 'scale(1.08)' : 'scale(1)',
-        zIndex: isDragging ? 999 : 'var(--z-icon)' as any,
+        zIndex: isDragging ? 999 : 'var(--z-icon)',
         filter: isDragging ? 'drop-shadow(0 8px 20px rgba(0,0,0,0.5))' : 'none',
       }}
     >

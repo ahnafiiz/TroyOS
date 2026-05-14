@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useOSStore } from '@/store/useOSStore';
 
 export default function AIAssistant() {
   const store = useOSStore();
   
-  const aiMessages = store.aiMessages ?? [];
+  const aiMessages = useMemo(() => store.aiMessages ?? [], [store.aiMessages]);
   const accentColor = store.accentColor ?? '#3b82f6';
   const addAIMessage = store.addAIMessage;
 
@@ -48,9 +48,9 @@ export default function AIAssistant() {
 
       const data = await res.json();
       const reply = data.reply ?? 'Neural link interrupted.';
-      addAIMessage('ai', reply);
+      addAIMessage('assistant', reply);
     } catch {
-      addAIMessage('ai', 'Something went wrong. Please try again.');
+      addAIMessage('assistant', 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

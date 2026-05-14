@@ -49,6 +49,13 @@ export interface TerminalLine {
   text: string;
 }
 
+/* AI CHAT */
+
+export interface AIMessage {
+  role: "user" | "assistant";
+  text: string;
+}
+
 /* TYPES */
 
 export type ThemeMode =
@@ -140,6 +147,17 @@ export interface OSState {
   ) => void;
 
   clearTerminal: () => void;
+
+  /* AI CHAT */
+
+  aiMessages: AIMessage[];
+
+  addAIMessage: (
+    role: "user" | "assistant",
+    text: string
+  ) => void;
+
+  clearAIMessages: () => void;
 
   /* LAUNCHER */
 
@@ -255,10 +273,7 @@ export interface OSState {
 
   /* DESKTOP ICONS */
 
-  iconPositions: Record<
-    string,
-    { x: number; y: number }
-  >;
+  iconPositions: Record<string, { x: number; y: number }>;
 
   setIconPosition: (
     id: string,
@@ -395,6 +410,26 @@ export const useOSStore = create<OSState>((set) => ({
   clearTerminal: () =>
     set({
       terminalLines: [],
+    }),
+
+  /* AI CHAT */
+
+  aiMessages: [],
+
+  addAIMessage: (role, text) =>
+    set((state) => ({
+      aiMessages: [
+        ...state.aiMessages,
+        {
+          role,
+          text,
+        },
+      ],
+    })),
+
+  clearAIMessages: () =>
+    set({
+      aiMessages: [],
     }),
 
   /* LAUNCHER */
@@ -605,11 +640,7 @@ export const useOSStore = create<OSState>((set) => ({
 
   notifications: [],
 
-  addNotification: (
-    title,
-    message,
-    icon
-  ) =>
+  addNotification: (title, message, icon) =>
     set((state) => ({
       notifications: [
         ...state.notifications,
