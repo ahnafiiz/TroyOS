@@ -51,14 +51,18 @@ export default function Taskbar() {
   // AUTO HIDE
   // ─────────────────────────────────────────────────────────────
   useEffect(() => {
+    const showTimeout = setTimeout(() => setHidden(false), 0);
+
     if (!dockAutoHide) {
-      setHidden(false);
-      return;
+      return () => clearTimeout(showTimeout);
     }
 
-    const timeout = setTimeout(() => setHidden(true), 1800);
+    const hideTimeout = setTimeout(() => setHidden(true), 1800);
 
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(showTimeout);
+      clearTimeout(hideTimeout);
+    };
   }, [dockAutoHide]);
 
   const handleMouseEnter = () => {

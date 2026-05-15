@@ -160,7 +160,7 @@ export default function Settings() {
   const isDarkMode       = store.isDarkMode       ?? true;
 
   // Merge store clock settings with safe defaults
-  const clockSettings: ClockSettings = {
+  const defaultClockSettings: ClockSettings = {
     type:         'hud',
     color:        '#ffffff',
     glowColor:    'rgba(59,130,246,0.5)',
@@ -169,6 +169,10 @@ export default function Settings() {
     showDate:     true,
     militaryTime: false,
     dateFormat:   'DD/MM/YYYY',
+  };
+
+  const clockSettings: ClockSettings = {
+    ...defaultClockSettings,
     ...store.clockSettings,
   };
 
