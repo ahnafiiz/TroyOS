@@ -2,30 +2,73 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY!,
+});
+
+type ChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+type GeminiContent = {
+  role: 'user' | 'model';
+  parts: { text: string }[];
+};
+
+type GeminiSuccessResponse = {
+  text?: string;
+};
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json();
+    const body = (await req.json()) as { messages: ChatMessage[] };
 
-    // Map your messages to the format Gemini expects
-    const contents = messages.map((m: any) => ({
+    if (!Array.isArray(body.messages)) {
+      return NextResponse.json(
+        { error: 'Invalid request: messages must be an array' },
+        { status: 400 }
+      );
+    }
+
+    const contents: GeminiContent[] = body.messages.map((m) => ({
       role: m.role === 'user' ? 'user' : 'model',
       parts: [{ text: m.content }],
     }));
 
-    const response = await ai.models.generateContent({
+    const result = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: contents,
+      contents,
       config: {
-        systemInstruction: "You are TROY, a helpful AI assistant embedded inside a futuristic OS interface. Be concise, friendly, and helpful. Keep responses short.",
-      }
+        systemInstruction:
+          'You are TROY, a helpful AI assistant embedded inside a futuristic OS interface. Be concise, friendly, and helpful.',
+      },
     });
 
-    return NextResponse.json({ reply: response.text });
+    // Safer extraction (prevents undefined crashes)
+    const reply =
+      (result as unknown as GeminiSuccessResponse)?.text ??
+      'No response generated';
 
-  } catch (err) {
+    return NextResponse.json(
+      {
+        success: true,
+        reply,
+      },
+      { status: 200 }
+    );
+  } catch (err: unknown) {
     console.error('Gemini API Error:', err);
-    return NextResponse.json({ error: 'TS api keys cost too much man :wilted_rose:' }, { status: 500 });
+
+    const message =
+      err instanceof Error ? err.message : 'Unknown server error';
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: message,
+      },
+      { status: 500 }
+    );
   }
 }

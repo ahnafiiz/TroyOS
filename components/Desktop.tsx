@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useOSStore } from '@/store/useOSStore';
 import { WALLPAPERS } from '@/config/themes';
 import { APPS } from '@/config/apps';
@@ -30,21 +30,26 @@ const GRID_STEP  = 100;
 const ICON_SIZE  = 84;
 const snapToGrid = (val: number) => Math.round(val / GRID_STEP) * GRID_STEP;
 
-// ── Clock sizing ──────────────────────────────────────────────────────────────
-// Reduced padding so the box wraps tightly around the text.
-const CLOCK_H_PADDING = 28;
-const CLOCK_V_PADDING = 14;
+// Reduced padding for tighter clock layout
+const CLOCK_H_PADDING = 24;
+const CLOCK_V_PADDING = 10;
 
 function getClockWidth(fontSize: number, use24Hour: boolean, showSeconds = false): number {
-  const dW = fontSize * 0.60;   // digit width (tabular)
-  const cW = fontSize * 0.28;   // colon width
-  const sW = fontSize * 0.20;   // space width
-  const aW = fontSize * 0.44;   // letter width ("A","M","P")
+  const dW = fontSize * 0.60;
+  const cW = fontSize * 0.28;
+  const sW = fontSize * 0.20;
+  const aW = fontSize * 0.44;
 
-  // Base: HH:MM = 4 digits + 1 colon
   let text = 4 * dW + cW;
-  if (showSeconds) text += cW + 2 * dW;   // :SS
-  if (!use24Hour)  text += sW + 2 * aW;   // " AM"
+
+  if (showSeconds) text += cW + 2 * dW;
+
+  if (!use24Hour) {
+    text += sW + 3 * aW;
+  } else {
+    // extra width for 24h layout
+    text += fontSize * 0.9;
+  }
 
   return Math.ceil(text + CLOCK_H_PADDING * 2);
 }
@@ -55,60 +60,46 @@ function getClockHeight(fontSize: number, showDate: boolean): number {
   return Math.ceil(timeH + dateH + CLOCK_V_PADDING * 2);
 }
 
-// ── Spiral search for nearest free grid cell ──────────────────────────────────
-function findFreeCell(
-  rawX: number,
-  rawY: number,
-  excludeId: string,
-  iconPositions: Record<string, { x: number; y: number }>,
-  clockRect: { x: number; y: number; w: number; h: number },
-  desktopW: number,
-  desktopH: number,
-  taskbarH: number,
+// ── Universal free space finder (works for both icons and clock) ──────────────
+function findFreeGridCell(
+  targetX: number,
+  targetY: number,
+  gridStep: number,
+  occupied: Array<{ x: number; y: number; w: number; h: number }>,
+  itemWidth: number,
+  itemHeight: number,
+  maxW: number,
+  maxH: number,
+  taskbarH: number
 ): { x: number; y: number } {
-  const MARGIN = 16;
-  const MAX_Y  = desktopH - taskbarH - ICON_SIZE - MARGIN;
+  const candidates: Array<{ x: number; y: number; dist: number }> = [];
+  const EDGE_MARGIN = 8; // Reduced from 16
 
-  const tx = snapToGrid(rawX);
-  const ty = snapToGrid(rawY);
+  // Generate all possible grid positions with reduced strictness
+  for (let x = EDGE_MARGIN; x < maxW - itemWidth - EDGE_MARGIN; x += gridStep) {
+    for (let y = EDGE_MARGIN; y < maxH - taskbarH - itemHeight - EDGE_MARGIN; y += gridStep) {
+      // Check if this position overlaps with any occupied space
+      const overlaps = occupied.some(occ => 
+        x < occ.x + occ.w + 4 && // Reduced collision padding from 8
+        x + itemWidth > occ.x - 4 &&
+        y < occ.y + occ.h + 4 &&
+        y + itemHeight > occ.y - 4
+      );
 
-  const overlapsIcon = (cx: number, cy: number): boolean =>
-    Object.entries(iconPositions).some(([id, p]) => {
-      if (id === excludeId) return false;
-      return snapToGrid(p.x) === cx && snapToGrid(p.y) === cy;
-    });
-
-  const overlapsClock = (cx: number, cy: number): boolean =>
-    cx < clockRect.x + clockRect.w + 8 &&
-    cx + ICON_SIZE > clockRect.x - 8 &&
-    cy < clockRect.y + clockRect.h + 8 &&
-    cy + ICON_SIZE > clockRect.y - 8;
-
-  const outOfBounds = (cx: number, cy: number): boolean =>
-    cx < MARGIN || cy < MARGIN || cx + ICON_SIZE > desktopW - MARGIN || cy > MAX_Y;
-
-  const isFree = (cx: number, cy: number) =>
-    !outOfBounds(cx, cy) && !overlapsIcon(cx, cy) && !overlapsClock(cx, cy);
-
-  if (isFree(tx, ty)) return { x: tx, y: ty };
-
-  for (let ring = 1; ring <= 14; ring++) {
-    const candidates: { x: number; y: number; dist: number }[] = [];
-    for (let dx = -ring; dx <= ring; dx++) {
-      for (let dy = -ring; dy <= ring; dy++) {
-        if (Math.abs(dx) !== ring && Math.abs(dy) !== ring) continue;
-        const cx = tx + dx * GRID_STEP;
-        const cy = ty + dy * GRID_STEP;
-        candidates.push({ x: cx, y: cy, dist: Math.hypot(cx - tx, cy - ty) });
+      if (!overlaps) {
+        const dist = Math.hypot(x - targetX, y - targetY);
+        candidates.push({ x, y, dist });
       }
-    }
-    candidates.sort((a, b) => a.dist - b.dist);
-    for (const c of candidates) {
-      if (isFree(c.x, c.y)) return { x: c.x, y: c.y };
     }
   }
 
-  return { x: tx, y: ty }; // fallback
+  // Sort by distance and return closest
+  candidates.sort((a, b) => a.dist - b.dist);
+  
+  return candidates[0] || { 
+    x: Math.max(EDGE_MARGIN, Math.min(snapToGrid(targetX), maxW - itemWidth - EDGE_MARGIN)),
+    y: Math.max(EDGE_MARGIN, Math.min(snapToGrid(targetY), maxH - taskbarH - itemHeight - EDGE_MARGIN))
+  };
 }
 
 // ── App content resolver ──────────────────────────────────────────────────────
@@ -173,13 +164,9 @@ interface CustomClockProps {
   settings: ClockStyleSettings;
   position: { x: number; y: number };
   onDragEnd: (x: number, y: number) => void;
-  desktopW: number;
-  desktopH: number;
-  taskbarH: number;
 }
 
-function CustomizableClock({ settings, position, onDragEnd, desktopW, desktopH, taskbarH }: CustomClockProps) {
-  // ── Self-contained clock tick (same pattern as Taskbar) ──────────────────
+function CustomizableClock({ settings, position, onDragEnd }: CustomClockProps): import("react/jsx-runtime").JSX.Element {
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
 
@@ -203,7 +190,6 @@ function CustomizableClock({ settings, position, onDragEnd, desktopW, desktopH, 
     return () => clearInterval(id);
   }, [settings.use24Hour, settings.showSeconds, settings.showDate]);
 
-  // ── Drag ─────────────────────────────────────────────────────────────────
   const [dragOffset, setDragOffset] = useState<{ dx: number; dy: number } | null>(null);
   const dragStartRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
 
@@ -233,10 +219,7 @@ function CustomizableClock({ settings, position, onDragEnd, desktopW, desktopH, 
       if (dragStartRef.current) {
         const rawX = dragStartRef.current.px + (ev.clientX - dragStartRef.current.mx);
         const rawY = dragStartRef.current.py + (ev.clientY - dragStartRef.current.my);
-        // Clamp within desktop bounds
-        const fx = snapToGrid(Math.max(0, Math.min(rawX, desktopW - clockW)));
-        const fy = snapToGrid(Math.max(0, Math.min(rawY, desktopH - taskbarH - clockH)));
-        onDragEnd(fx, fy);
+        onDragEnd(rawX, rawY);
       }
       setDragOffset(null);
       dragStartRef.current = null;
@@ -285,7 +268,7 @@ function CustomizableClock({ settings, position, onDragEnd, desktopW, desktopH, 
         top:  displayPos.y,
         width: clockW,
         height: clockH,
-        zIndex: 5,
+        zIndex: 10, // Above icons (30) but below windows
         cursor: isDragging ? 'grabbing' : 'grab',
         userSelect: 'none',
         display: 'flex',
@@ -294,7 +277,7 @@ function CustomizableClock({ settings, position, onDragEnd, desktopW, desktopH, 
         justifyContent: 'center',
         padding: `${CLOCK_V_PADDING}px ${CLOCK_H_PADDING}px`,
         boxSizing: 'border-box',
-        transition: isDragging ? 'none' : 'width 0.3s cubic-bezier(0.16,1,0.3,1), height 0.3s cubic-bezier(0.16,1,0.3,1)',
+        transition: isDragging ? 'none' : 'left 0.23s cubic-bezier(0.16,1,0.3,1), top 0.23s cubic-bezier(0.16,1,0.3,1), width 0.3s cubic-bezier(0.16,1,0.3,1), height 0.3s cubic-bezier(0.16,1,0.3,1)',
         ...getStylePreset(),
       }}
     >
@@ -337,11 +320,14 @@ interface DraggableIconProps {
   name: string;
   initialX: number;
   initialY: number;
+  iconSize: number;
+  labelSize: number;
+  showLabel: boolean;
   onDragEnd?: (appId: string, x: number, y: number) => void;
   onOpen?: () => void;
 }
 
-function DraggableIcon({ appId, emoji, name, initialX, initialY, onDragEnd, onOpen }: DraggableIconProps) {
+function DraggableIcon({ appId, emoji, name, initialX, initialY, iconSize, labelSize, showLabel, onDragEnd, onOpen }: DraggableIconProps) {
   const [dragDelta, setDragDelta] = useState<{ dx: number; dy: number } | null>(null);
   const dragStartRef = useRef<{ mx: number; my: number } | null>(null);
   const didDrag      = useRef(false);
@@ -349,6 +335,10 @@ function DraggableIcon({ appId, emoji, name, initialX, initialY, onDragEnd, onOp
   const isDragging = dragDelta !== null;
   const displayX   = isDragging ? initialX + dragDelta.dx : initialX;
   const displayY   = isDragging ? initialY + dragDelta.dy : initialY;
+
+  const iconInnerSize = Math.max(34, Math.min(64, Math.round(iconSize * 0.54)));
+  const iconFontSize = Math.max(18, Math.min(26, Math.round(iconInnerSize * 0.55)));
+  const labelFontSize = showLabel ? Math.max(8, Math.min(18, labelSize)) : 0;
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -360,8 +350,10 @@ function DraggableIcon({ appId, emoji, name, initialX, initialY, onDragEnd, onOp
 
     const onMove = (ev: MouseEvent) => {
       if (!dragStartRef.current) return;
-      didDrag.current = true;
-      setDragDelta({ dx: ev.clientX - dragStartRef.current.mx, dy: ev.clientY - dragStartRef.current.my });
+      const dx = ev.clientX - dragStartRef.current.mx;
+      const dy = ev.clientY - dragStartRef.current.my;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true;
+      setDragDelta({ dx, dy });
     };
     const onUp = (ev: MouseEvent) => {
       window.removeEventListener('mousemove', onMove);
@@ -385,10 +377,12 @@ function DraggableIcon({ appId, emoji, name, initialX, initialY, onDragEnd, onOp
       style={{
         position: 'absolute',
         left: displayX, top: displayY,
-        width: ICON_SIZE, height: ICON_SIZE,
+        width: iconSize, height: iconSize,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         cursor: isDragging ? 'grabbing' : 'grab',
-        padding: 4,
+        padding: 0,
+        gap: 8,
+        boxSizing: 'border-box',
         borderRadius: 'var(--border-radius, 12px)',
         background:     isDragging ? 'rgba(255,255,255,0.08)' : 'transparent',
         border:         `1px solid ${isDragging ? 'rgba(255,255,255,0.1)' : 'transparent'}`,
@@ -396,13 +390,14 @@ function DraggableIcon({ appId, emoji, name, initialX, initialY, onDragEnd, onOp
         boxShadow:      isDragging ? '0 16px 32px rgba(0,0,0,0.4)' : 'none',
         transform:      isDragging ? 'scale(1.04)' : 'scale(1)',
         transition:     isDragging ? 'none' : 'all 0.23s cubic-bezier(0.16,1,0.3,1)',
-        zIndex: isDragging ? 9999 : 30,
+        zIndex: isDragging ? 9999 : 1,
         userSelect: 'none',
       }}
       className="desktop-icon"
     >
       <div style={{
-        fontSize: 24, width: 44, height: 44,
+        fontSize: iconFontSize,
+        width: iconInnerSize, height: iconInnerSize,
         background: 'linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))',
         border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: 'calc(var(--border-radius,12px)*0.75)',
@@ -412,7 +407,8 @@ function DraggableIcon({ appId, emoji, name, initialX, initialY, onDragEnd, onOp
         {emoji}
       </div>
       <span style={{
-        fontSize: 11, fontWeight: 500, marginTop: 5, textAlign: 'center',
+        display: showLabel ? 'block' : 'none',
+        fontSize: labelFontSize, fontWeight: 500, marginTop: 0, textAlign: 'center',
         color: '#f3f4f6', textShadow: '0 1px 3px rgba(0,0,0,0.9)',
         lineHeight: 1.15, width: '100%', padding: '0 2px',
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -432,17 +428,20 @@ export default function Desktop() {
   const wallpaperIndex = store.wallpaperIndex ?? 0;
   const launcherOpen   = store.launcherOpen ?? false;
   const notifications  = store.notifications || [];
-  const iconPositions  = useOSStore(s => s.iconPositions) ?? {};
+  const iconPositionsFromStore = useOSStore(s => s.iconPositions);
+  const iconPositions = useMemo(() => iconPositionsFromStore ?? {}, [iconPositionsFromStore]);
 
   const openApp            = store.openApp;
   const removeNotification = store.removeNotification;
   const setIconPosition    = store.setIconPosition;
 
   const wallpaper = WALLPAPERS[wallpaperIndex];
-  const [clockPosition, setClockPosition] = useState({ x: 900, y: 100 });
+  const [desktopRefresh, setDesktopRefresh] = useState(0);
+  const clockPosition = useMemo(() => store.clockPosition || { x: 900, y: 100 }, [store.clockPosition]);
+  const setClockPosition = store.setClockPosition;
+  const snapToGridEnabled = store.snapToGridEnabled ?? true;
   const [contextMenu, setContextMenu]     = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
 
-  // ── Measure desktop size for boundary clamping ──────────────────────────
   const desktopRef = useRef<HTMLDivElement>(null);
   const [desktopSize, setDesktopSize] = useState({ w: 1280, h: 800 });
   useEffect(() => {
@@ -463,11 +462,30 @@ export default function Desktop() {
   const uiBlur           = store.uiBlur           ?? 20;
   const uiBorderRadius   = store.uiBorderRadius   ?? 16;
   const taskbarHeight    = store.taskbarHeight    ?? 54;
-  const customWallpaper  = store.customWallpaper;
-  const wallpaperStyle   = store.wallpaperStyle   || 'fill';
+  const customWallpaper           = store.customWallpaper;
+  const customBackgroundGradient  = store.customBackgroundGradient;
+  const customBackgroundColor     = store.customBackgroundColor;
+  const wallpaperStyle            = store.wallpaperStyle   || 'fill';
+  const showDesktopGrid           = store.showDesktopGrid  ?? true;
+  const currentIconSize           = store.iconSize         ?? ICON_SIZE;
+  const desktopIconLabelsVisible  = store.desktopIconLabelsVisible ?? true;
+  const desktopIconLabelSize      = store.desktopIconLabelSize ?? 11;
+  const taskbarOpacity            = store.taskbarOpacity ?? 0.82;
+  const launcherOpacity           = store.launcherOpacity ?? 0.96;
+  const notificationPosition      = store.notificationPosition || 'top-right';
 
-  // Effective taskbar clearance (taskbar + floating gap)
-  const taskbarClearance = taskbarHeight + 20;
+  const taskbarClearance = taskbarHeight;
+  const refreshDesktop = () => setDesktopRefresh((prev) => prev + 1);
+
+  const getNotificationPositionStyles = () => {
+    switch (notificationPosition) {
+      case 'top-left': return { top: 30, left: 30, right: 'auto', bottom: 'auto' };
+      case 'top-right': return { top: 30, right: 30, left: 'auto', bottom: 'auto' };
+      case 'bottom-left': return { bottom: 30, left: 30, right: 'auto', top: 'auto' };
+      case 'bottom-right':
+      default: return { bottom: 30, right: 30, left: 'auto', top: 'auto' };
+    }
+  };
 
   useEffect(() => {
     const root = document.documentElement;
@@ -482,7 +500,9 @@ export default function Desktop() {
     root.style.setProperty('--glass-blur',        `${uiBlur}px`);
     root.style.setProperty('--glass-saturate',    '160%');
     root.style.setProperty('--glass-bg',          `rgba(18,18,18,${uiOpacity})`);
-    root.style.setProperty('--glass-bg-deep',     `rgba(10,12,18,${uiOpacity})`);
+    root.style.setProperty('--glass-bg-deep',     `rgba(10,12,18,${taskbarOpacity})`);
+    root.style.setProperty('--taskbar-opacity',   String(taskbarOpacity));
+    root.style.setProperty('--launcher-opacity',  String(launcherOpacity));
     root.style.setProperty('--glass-border',      'rgba(255,255,255,0.08)');
     root.style.setProperty('--text-primary',      '#ffffff');
     root.style.setProperty('--text-secondary',    'rgba(255,255,255,0.65)');
@@ -499,7 +519,7 @@ export default function Desktop() {
     root.style.setProperty('--dur-fast',   store.reducedMotion ? '0ms' : '100ms');
     root.style.setProperty('--dur-normal', store.reducedMotion ? '0ms' : '200ms');
     root.style.setProperty('--dur-slow',   store.reducedMotion ? '0ms' : '400ms');
-  }, [uiBlur, uiOpacity, uiBorderRadius, systemFontFamily, systemFontSize, accentColor, taskbarHeight, store.cursorStyle, store.reducedMotion]);
+  }, [uiBlur, uiOpacity, uiBorderRadius, systemFontFamily, systemFontSize, accentColor, taskbarHeight, taskbarOpacity, launcherOpacity, store.cursorStyle, store.reducedMotion]);
 
   const parsedWallpaperStyle = useMemo(() => {
     if (customWallpaper) {
@@ -509,16 +529,18 @@ export default function Desktop() {
       if (wallpaperStyle === 'tile')    { size = 'auto'; repeat = 'repeat'; }
       return { backgroundImage: `url("${customWallpaper}")`, backgroundSize: size, backgroundRepeat: repeat, backgroundPosition: 'center' };
     }
-    if (!wallpaper?.background) return { backgroundColor: '#0a0c12' };
+    if (!wallpaper?.background) {
+      if (customBackgroundGradient) return { backgroundImage: customBackgroundGradient };
+      return { backgroundColor: customBackgroundColor || '#0a0c12' };
+    }
     const bg  = wallpaper.background;
     const nbg = bg.startsWith('/public/') ? bg.replace('/public/', '/') : bg;
     const isImg = /^https?:\/\//.test(nbg) || /^(\/|blob:|data:image)/.test(nbg) || /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(nbg);
     if (isImg) return { backgroundImage: `url("${nbg}")`, backgroundSize: wallpaperStyle === 'fit' ? 'contain' : wallpaperStyle === 'stretch' ? '100% 100%' : 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' };
     if (nbg.startsWith('linear-gradient') || nbg.startsWith('radial-gradient')) return { backgroundImage: nbg };
     return { backgroundColor: nbg || '#000' };
-  }, [wallpaper, customWallpaper, wallpaperStyle]);
+  }, [wallpaper, customWallpaper, wallpaperStyle, customBackgroundColor, customBackgroundGradient]);
 
-  // ── Clock settings from store ────────────────────────────────────────────
   const clockSettings = useMemo((): ClockStyleSettings => ({
     type:        (store.clockSettings?.type as ClockStyleSettings['type']) || 'hud',
     color:       store.clockSettings?.color     || '#ffffff',
@@ -530,69 +552,138 @@ export default function Desktop() {
     fontFamily:  systemFontFamily,
   }), [store.clockSettings, accentColor, systemFontFamily]);
 
-  // ── Grid helpers ─────────────────────────────────────────────────────────
-  const getCleanGridPos = (index: number) => {
-    const gx = 100, gy = 112, margin = 30;
+  const getCleanGridPos = useCallback((index: number) => {
+    const gx = 100, gy = 112, margin = 20; // Reduced from 30
     const maxRows = Math.max(1, Math.floor((desktopSize.h - taskbarClearance - margin * 2) / gy));
     const col = Math.floor(index / maxRows), row = index % maxRows;
     return { x: snapToGrid(margin + col * gx), y: snapToGrid(margin + row * gy) };
-  };
+  }, [desktopSize, taskbarClearance]);
 
-  // ── Icon drag handler — spiral placement ─────────────────────────────────
-  const handleIconDragEnd = (appId: string, rawX: number, rawY: number) => {
+  // Get all occupied spaces (icons + clock)
+  const getAllOccupiedSpaces = useCallback(() => {
+    const occupied: Array<{ x: number; y: number; w: number; h: number }> = [];
+    
+    // Add all icon positions
+    APPS.forEach((app, index) => {
+      const saved = iconPositions[app.id];
+      const pos = saved ? { x: snapToGrid(saved.x), y: snapToGrid(saved.y) } : getCleanGridPos(index);
+      occupied.push({ x: pos.x, y: pos.y, w: currentIconSize, h: currentIconSize });
+    });
+    
+    // Add clock position
     const clockW = getClockWidth(clockSettings.fontSize ?? 52, clockSettings.use24Hour, clockSettings.showSeconds);
     const clockH = getClockHeight(clockSettings.fontSize ?? 52, clockSettings.showDate);
+    occupied.push({ x: clockPosition.x, y: clockPosition.y, w: clockW, h: clockH });
+    
+    return occupied;
+  }, [iconPositions, clockPosition, clockSettings, getCleanGridPos, currentIconSize]);
 
-    const free = findFreeCell(
+  const clampDesktopPosition = useCallback((x: number, y: number, w: number, h: number) => ({
+    x: Math.max(0, Math.min(x, desktopSize.w - w)),
+    y: Math.max(0, Math.min(y, desktopSize.h - taskbarClearance - h)),
+  }), [desktopSize, taskbarClearance]);
+
+  const handleIconDragEnd = useCallback((appId: string, rawX: number, rawY: number) => {
+    if (!snapToGridEnabled) {
+      setIconPosition(appId, clampDesktopPosition(rawX, rawY, currentIconSize, currentIconSize));
+      return;
+    }
+
+    const occupied = getAllOccupiedSpaces().filter(occ => {
+      const saved = iconPositions[appId];
+      if (!saved) return true;
+      return !(snapToGrid(saved.x) === occ.x && snapToGrid(saved.y) === occ.y && occ.w === currentIconSize);
+    });
+
+    const free = findFreeGridCell(
       rawX, rawY,
-      appId,
-      iconPositions,
-      { x: clockPosition.x, y: clockPosition.y, w: clockW, h: clockH },
+      GRID_STEP,
+      occupied,
+      currentIconSize,
+      currentIconSize,
       desktopSize.w,
       desktopSize.h,
-      taskbarClearance,
+      taskbarClearance
     );
+    
     setIconPosition(appId, free);
-  };
+  }, [iconPositions, getAllOccupiedSpaces, desktopSize, taskbarClearance, setIconPosition, currentIconSize, snapToGridEnabled, clampDesktopPosition]);
 
-  // ── Clock drag handler ───────────────────────────────────────────────────
-  const handleClockDragEnd = (targetX: number, targetY: number) => {
+  const handleClockDragEnd = useCallback((rawX: number, rawY: number) => {
     const clockW = getClockWidth(clockSettings.fontSize ?? 52, clockSettings.use24Hour, clockSettings.showSeconds);
     const clockH = getClockHeight(clockSettings.fontSize ?? 52, clockSettings.showDate);
 
-    const overlapsAnyIcon = (cx: number, cy: number) =>
-      APPS.some((app, i) => {
-        const saved = iconPositions[app.id];
-        const p     = saved ? { x: snapToGrid(saved.x), y: snapToGrid(saved.y) } : getCleanGridPos(i);
-        return p.x < cx + clockW + 8 && p.x + ICON_SIZE > cx - 8 &&
-               p.y < cy + clockH + 8 && p.y + ICON_SIZE > cy - 8;
-      });
+    if (!snapToGridEnabled) {
+      setClockPosition(clampDesktopPosition(rawX, rawY, clockW, clockH));
+      return;
+    }
 
-    if (overlapsAnyIcon(targetX, targetY)) {
-      let nx = targetX + GRID_STEP;
-      while (overlapsAnyIcon(nx, targetY) && nx < desktopSize.w - clockW) nx += GRID_STEP;
-      setClockPosition({ x: Math.min(nx, desktopSize.w - clockW), y: targetY });
-    } else {
-      setClockPosition({ x: targetX, y: targetY });
+    const occupied: Array<{ x: number; y: number; w: number; h: number }> = [];
+    APPS.forEach((app, index) => {
+      const saved = iconPositions[app.id];
+      const pos = saved ? { x: snapToGrid(saved.x), y: snapToGrid(saved.y) } : getCleanGridPos(index);
+      occupied.push({ x: pos.x, y: pos.y, w: currentIconSize, h: currentIconSize });
+    });
+
+    const free = findFreeGridCell(
+      rawX, rawY,
+      GRID_STEP,
+      occupied,
+      clockW,
+      clockH,
+      desktopSize.w,
+      desktopSize.h,
+      taskbarClearance
+    );
+    
+    setClockPosition(free);
+  }, [clockSettings, iconPositions, desktopSize, taskbarClearance, getCleanGridPos, currentIconSize, snapToGridEnabled, clampDesktopPosition, setClockPosition]);
+
+  const clampWindowPos = (wx: number, wy: number, ww: number, wh: number) => ({
+    x: Math.max(0, Math.min(wx, desktopSize.w - ww)),
+    y: Math.max(0, Math.min(wy, desktopSize.h - taskbarClearance - wh)),
+  });
+
+const handleContextMenu = (e: React.MouseEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const target = e.target as HTMLElement;
+
+  if (
+    target.closest('.desktop-icon') ||
+    target.closest('[data-window]')
+  ) {
+    return;
+  }
+
+  setContextMenu({
+    x: e.clientX,
+    y: e.clientY,
+    visible: true,
+  });
+};
+
+useEffect(() => {
+  const handleMouseDown = (e: MouseEvent) => {
+    if (e.button === 0) {
+      setContextMenu(prev => ({
+        ...prev,
+        visible: false,
+      }));
     }
   };
 
-  // ── Window drag boundary clamping ────────────────────────────────────────
-  // Enforce that windows stay within the desktop whenever their position updates.
-  const clampWindowPos = (wx: number, wy: number, ww: number, wh: number) => ({
-    x: Math.max(0, Math.min(wx, desktopSize.w - ww)),
-    y: Math.max(0, Math.min(wy, desktopSize.h - taskbarClearance - 40)),
-  });
+  window.addEventListener('mousedown', handleMouseDown);
 
-  const handleContextMenu = (e: React.MouseEvent) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, visible: true }); };
-  useEffect(() => {
-    const close = () => setContextMenu(p => ({ ...p, visible: false }));
-    window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
-  }, []);
+  return () => {
+    window.removeEventListener('mousedown', handleMouseDown);
+  };
+}, []);
 
   return (
     <div
+      key={desktopRefresh}
       ref={desktopRef}
       onContextMenu={handleContextMenu}
       style={{
@@ -622,7 +713,7 @@ export default function Desktop() {
       }} />
 
       {/* Grid overlay */}
-      {!customWallpaper && (
+      {!customWallpaper && showDesktopGrid && (
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
           backgroundImage: [
@@ -634,14 +725,11 @@ export default function Desktop() {
         }} />
       )}
 
-      {/* Clock — self-ticking */}
+      {/* Clock — z-index 50 (above icons at 30) */}
       <CustomizableClock
         settings={clockSettings}
         position={clockPosition}
         onDragEnd={handleClockDragEnd}
-        desktopW={desktopSize.w}
-        desktopH={desktopSize.h}
-        taskbarH={taskbarClearance}
       />
 
       {/* Desktop icons */}
@@ -656,13 +744,16 @@ export default function Desktop() {
             name={app.name}
             initialX={saved ? snapToGrid(saved.x) : pos.x}
             initialY={saved ? snapToGrid(saved.y) : pos.y}
+            iconSize={currentIconSize}
+            labelSize={desktopIconLabelSize}
+            showLabel={desktopIconLabelsVisible}
             onDragEnd={handleIconDragEnd}
             onOpen={() => openApp(app.id)}
           />
         );
       })}
 
-      {/* Windows — with boundary-clamped positions */}
+      {/* Windows */}
       {windows.map(win => {
         const ww = win.size?.width  ?? win.width  ?? 800;
         const wh = win.size?.height ?? win.height ?? 560;
@@ -694,7 +785,7 @@ export default function Desktop() {
       {launcherOpen && <AppLauncher />}
 
       {/* Notifications */}
-      <div style={{ position: 'absolute', top: 30, right: 30, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ position: 'absolute', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 10, ...getNotificationPositionStyles() }}>
         {notifications.map(n => (
           <div key={n.id} className="notif-enter" onClick={() => removeNotification(n.id)}
             style={{
@@ -713,18 +804,65 @@ export default function Desktop() {
         ))}
       </div>
 
-      {/* Context menu */}
-      {contextMenu.visible && (
-        <div style={{
-          position: 'absolute',
-          left: Math.min(contextMenu.x, desktopSize.w - 180),
-          top:  Math.min(contextMenu.y, desktopSize.h - 100),
-          width: 170,
-          background: `rgba(15,18,25,${uiOpacity})`, backdropFilter: `blur(${uiBlur}px)`,
-          border: '1px solid rgba(255,255,255,0.08)', borderRadius: 'var(--border-radius,12px)',
-          padding: 6, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', flexDirection: 'column', gap: 2,
-        }}>
-          <button onClick={() => openApp('settings')} style={{
+  {/* Context menu */}
+<div
+  style={{
+    position: 'absolute',
+    left: Math.min(contextMenu.x, desktopSize.w - 180),
+    top: Math.min(contextMenu.y, desktopSize.h - 100),
+
+    width: 170,
+
+    background: `rgba(15,18,25,${uiOpacity})`,
+    backdropFilter: `blur(${uiBlur}px)`,
+
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 'var(--border-radius,12px)',
+
+    padding: 6,
+
+    boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+
+    zIndex: 9999,
+
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+
+    opacity: contextMenu.visible ? 1 : 0,
+
+    transform: contextMenu.visible
+      ? 'scale(1) translateY(0px)'
+      : 'scale(0.96) translateY(6px)',
+
+    pointerEvents: contextMenu.visible ? 'auto' : 'none',
+
+    transition:
+      'opacity 140ms ease, transform 180ms cubic-bezier(0.16,1,0.3,1)',
+  }}
+>
+          <button onClick={(e) => { e.stopPropagation(); refreshDesktop(); setContextMenu(p => ({ ...p, visible: false })); }} style={{
+            background: 'transparent', border: 'none', borderRadius: 'calc(var(--border-radius,12px) - 4px)',
+            color: '#fff', fontSize: 12, fontWeight: 500, textAlign: 'left', padding: '8px 12px',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.2s',
+          }}
+            onMouseEnter={e => (e.currentTarget.style.background = `${accentColor}22`)}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <span style={{ color: accentColor }}>🔄</span> Refresh
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); store.setSnapToGridEnabled(!snapToGridEnabled); setContextMenu(p => ({ ...p, visible: false })); }} style={{
+            background: 'transparent', border: 'none', borderRadius: 'calc(var(--border-radius,12px) - 4px)',
+            color: '#fff', fontSize: 12, fontWeight: 500, textAlign: 'left', padding: '8px 12px',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.2s',
+          }}
+            onMouseEnter={e => (e.currentTarget.style.background = `${accentColor}22`)}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <span style={{ color: accentColor }}>{snapToGridEnabled ? '📌' : '⭕'}</span> Snap to Grid: {snapToGridEnabled ? 'On' : 'Off'}
+          </button>
+          <hr style={{ border: 'none', height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+          <button onClick={(e) => { e.stopPropagation(); openApp('settings'); setContextMenu(p => ({ ...p, visible: false })); }} style={{
             background: 'transparent', border: 'none', borderRadius: 'calc(var(--border-radius,12px) - 4px)',
             color: '#fff', fontSize: 12, fontWeight: 500, textAlign: 'left', padding: '8px 12px',
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.2s',
@@ -737,7 +875,7 @@ export default function Desktop() {
           <hr style={{ border: 'none', height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
           <div style={{ padding: '4px 12px', fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontWeight: 700 }}>Troy OS v2.0</div>
         </div>
-      )}
+      
 
       {/* Taskbar */}
       <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 101, pointerEvents: 'none' }}>

@@ -47,10 +47,10 @@ export default function AIAssistant() {
       });
 
       const data = await res.json();
-      const reply = data.reply ?? 'Neural link interrupted.';
+      const reply = data.reply ?? 'AI interrupted';
       addAIMessage('assistant', reply);
     } catch {
-      addAIMessage('assistant', 'Something went wrong. Please try again.');
+      addAIMessage('assistant', 'TS api keys cost too much man :wilted_rose:');
     } finally {
       setLoading(false);
     }

@@ -5,7 +5,7 @@ import { useOSStore } from '@/store/useOSStore';
 import { APPS } from '@/config/apps';
 
 export default function AppLauncher() {
-  const { openApp, toggleLauncher, launcherOpen, currentTime, launcherPosition, taskbarHeight } = useOSStore();
+  const { openApp, toggleLauncher, launcherOpen, currentTime, launcherPosition, taskbarHeight, launcherOpacity } = useOSStore();
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleOpenApp = (app: typeof APPS[0]) => {
@@ -22,7 +22,8 @@ export default function AppLauncher() {
 
   if (!launcherOpen) return null;
 
-  const timeString = (currentTime || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const currentTimeValue = currentTime ? new Date(currentTime) : new Date();
+  const timeString = currentTimeValue.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const dockH = (taskbarHeight ?? 54) + 12;
 
   // Compute panel position
@@ -42,7 +43,7 @@ export default function AppLauncher() {
         onClick={toggleLauncher}
         style={{
           position: 'absolute', inset: 0,
-          zIndex: 'calc(var(--z-launcher) - 1)' as any,
+          zIndex: 'calc(var(--z-launcher) - 1)',
           background: 'rgba(0,0,0,0.18)',
           backdropFilter: 'blur(4px)',
           WebkitBackdropFilter: 'blur(4px)',
@@ -56,12 +57,13 @@ export default function AppLauncher() {
         style={{
           position: 'absolute',
           ...pos,
-          zIndex: 'var(--z-launcher)' as any,
+          zIndex: 'var(--z-launcher)',
           borderRadius: 'var(--radius-xl)',
           width: 580,
           height: 440,
           display: 'flex',
           overflow: 'hidden',
+          background: `rgba(10,12,18,${launcherOpacity})`,
         }}
       >
         <style>{`

@@ -23,12 +23,11 @@ export default function Window({
   id,
   name = '',
   emoji = '📦',
-  color = '#3b82f6',
   width = 800,
   height = 560,
   x = 100,
   y = 80,
-  zIndex = 10,
+  zIndex = 100,
   minimized = false,
   maximized = false,
   children,
@@ -39,6 +38,7 @@ export default function Window({
   const windowAnimationCurve = store.windowAnimationCurve || 'smooth';
   const windowBorderGlow  = store.windowBorderGlow !== false;
   const taskbarHeight     = store.taskbarHeight ?? 54;
+  const accentColor       = store.accentColor || '#3b82f6';
 
   const closeWindow    = store.closeWindow    ?? (() => {});
   const focusWindow    = store.focusWindow    ?? (() => {});
@@ -59,7 +59,7 @@ export default function Window({
   // Min visible: titlebar must always be reachable (top 40px of window on screen)
   // Max: window top-left must stay within viewport minus taskbar
   const TITLEBAR_H  = 40;
-  const TASKBAR_CLEARANCE = taskbarHeight + 20;
+  const TASKBAR_CLEARANCE = taskbarHeight + 0;
 
   const clampPos = (nx: number, ny: number): { x: number; y: number } => {
     const vw = typeof window !== 'undefined' ? window.innerWidth  : 1280;
@@ -131,10 +131,9 @@ export default function Window({
     const base: React.CSSProperties = {
       position: 'absolute',
       left:   maximized ? 0 : x,
-      top:    maximized ? 0 : y,
+      top: maximized ? 0 : y,
       width:  maximized ? '100vw' : width,
-      height: maximized ? `calc(100vh - var(--taskbar-offset, 60px))` : height,
-      zIndex,
+      height: maximized ? `calc(100vh - ${taskbarHeight}px)` : height,
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -143,11 +142,12 @@ export default function Window({
       transition: getAnimationTransition(),
       transform: isFocused ? 'scale(1)' : 'scale(0.995)',
       opacity:   isFocused ? 1 : 0.9,
+      zIndex: isFocused ? zIndex + 20 : zIndex,
     };
 
     if (uiStyleProfile === 'neo-brutalism') return { ...base, background: '#ffffff', color: '#000000', borderRadius: 0, border: isFocused ? '3px solid #000000' : '2px solid #222222', boxShadow: isFocused ? '6px 6px 0px #000000' : '3px 3px 0px #000000' };
-    if (uiStyleProfile === 'cyberpunk')     return { ...base, background: 'rgba(10,10,14,0.93)', color: '#00ffcc', borderRadius: 0, border: `1px solid ${color || '#00ffcc'}`, boxShadow: isFocused && windowBorderGlow ? `0 0 20px ${color}66, inset 0 0 10px ${color}33` : '0 4px 15px rgba(0,0,0,0.8)' };
-    if (uiStyleProfile === 'minimalist')    return { ...base, background: '#ffffff', color: '#111111', borderRadius: 6, border: isFocused ? '1px solid #111111' : '1px solid #e5e7eb', boxShadow: isFocused ? '0 10px 25px -5px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.05)' };
+    if (uiStyleProfile === 'cyberpunk')     return { ...base, background: 'rgba(10,10,14,0.93)', color: '#00ffcc', borderRadius: 0, border: `1px solid ${accentColor}`, boxShadow: isFocused && windowBorderGlow ? `0 0 20px ${accentColor}66, inset 0 0 10px ${accentColor}33` : '0 4px 15px rgba(0,0,0,0.8)' };
+    if (uiStyleProfile === 'minimalist')    return { ...base, background: '#ffffff', color: '#111111', borderRadius: 6, border: isFocused ? `1px solid ${accentColor}` : '1px solid #e5e7eb', boxShadow: isFocused ? `0 10px 25px -5px ${accentColor}33` : '0 1px 3px rgba(0,0,0,0.05)' };
 
     return {
       ...base,
@@ -156,8 +156,8 @@ export default function Window({
       WebkitBackdropFilter: 'blur(var(--ui-blur,20px))',
       color: '#f3f4f6',
       borderRadius: 'var(--border-radius,14px)',
-      border: isFocused ? `1px solid ${color}cc` : '1px solid rgba(255,255,255,0.08)',
-      boxShadow: isFocused && windowBorderGlow ? `0 12px 40px rgba(0,0,0,0.6), 0 0 15px ${color}33` : '0 8px 24px rgba(0,0,0,0.4)',
+      border: isFocused ? `1px solid ${accentColor}cc` : '1px solid rgba(255,255,255,0.08)',
+      boxShadow: isFocused && windowBorderGlow ? `0 12px 40px rgba(0,0,0,0.6), 0 0 15px ${accentColor}33` : '0 8px 24px rgba(0,0,0,0.4)',
     };
   };
 
@@ -196,15 +196,15 @@ export default function Window({
           style={{ display: 'flex', alignItems: 'center', gap: 8 }}
         >
           {/* Minimise */}
-          <div onClick={(e) => { e.stopPropagation(); toggleMinimize(id); }} style={{ width: 13, height: 13, borderRadius: uiStyleProfile === 'neo-brutalism' ? 0 : '50%', background: '#fbbf24', border: uiStyleProfile === 'neo-brutalism' ? '2px solid #000000' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 9, fontWeight: 900, color: '#451a03' }}>
+          <div onClick={(e) => { e.stopPropagation(); toggleMinimize(id); }} style={{ width: 14, height: 14, borderRadius: uiStyleProfile === 'neo-brutalism' ? 0 : '50%', background: '#fbbf24', border: uiStyleProfile === 'neo-brutalism' ? '2px solid #000000' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12, fontWeight: 900, color: '#451a03' }}>
             {hoveredControls && '–'}
           </div>
           {/* Maximise */}
-          <div onClick={(e) => { e.stopPropagation(); toggleMaximize(id); }} style={{ width: 13, height: 13, borderRadius: uiStyleProfile === 'neo-brutalism' ? 0 : '50%', background: '#34d399', border: uiStyleProfile === 'neo-brutalism' ? '2px solid #000000' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 8, fontWeight: 900, color: '#064e3b' }}>
+          <div onClick={(e) => { e.stopPropagation(); toggleMaximize(id); }} style={{ width: 14, height: 14, borderRadius: uiStyleProfile === 'neo-brutalism' ? 0 : '50%', background: '#34d399', border: uiStyleProfile === 'neo-brutalism' ? '2px solid #000000' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10, fontWeight: 900, color: '#064e3b' }}>
             {hoveredControls && (maximized ? '⤫' : '⤢')}
           </div>
           {/* Close */}
-          <div onClick={(e) => { e.stopPropagation(); closeWindow(id); }} style={{ width: 13, height: 13, borderRadius: uiStyleProfile === 'neo-brutalism' ? 0 : '50%', background: '#f87171', border: uiStyleProfile === 'neo-brutalism' ? '2px solid #000000' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10, fontWeight: 900, color: '#7f1d1d' }}>
+          <div onClick={(e) => { e.stopPropagation(); closeWindow(id); }} style={{ width: 14, height: 14, borderRadius: uiStyleProfile === 'neo-brutalism' ? 0 : '50%', background: '#f87171', border: uiStyleProfile === 'neo-brutalism' ? '2px solid #000000' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12, fontWeight: 900, color: '#7f1d1d' }}>
             {hoveredControls && '×'}
           </div>
         </div>

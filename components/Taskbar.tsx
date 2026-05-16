@@ -294,7 +294,7 @@ export default function Taskbar() {
           padding:
             dockStyle === 'pill'
               ? 'var(--dock-padding) var(--dock-padding)'
-              : '4px 8px',
+              : '0px 0px',
 
           borderRadius:
             dockStyle === 'pill'
