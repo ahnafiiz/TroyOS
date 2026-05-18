@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useOSStore } from '@/store/useOSStore';
+import { useOSStore, OS_VERSION } from '@/store/useOSStore';
 import { APPS } from '@/config/apps';
+import AppIcon from './AppIcon';
 
 export default function AppLauncher() {
-  const { openApp, toggleLauncher, launcherOpen, currentTime, launcherPosition, taskbarHeight, launcherOpacity } = useOSStore();
+  const { openApp, toggleLauncher, launcherOpen, currentTime, launcherPosition, taskbarHeight, launcherOpacity, iconImages } = useOSStore();
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleOpenApp = (app: typeof APPS[0]) => {
@@ -26,7 +27,6 @@ export default function AppLauncher() {
   const timeString = currentTimeValue.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const dockH = (taskbarHeight ?? 54) + 12;
 
-  // Compute panel position
   const pos: React.CSSProperties = (() => {
     switch (launcherPosition) {
       case 'bottom-right': return { bottom: dockH, right: 24 };
@@ -136,7 +136,7 @@ export default function AppLauncher() {
             color: 'var(--text-tertiary)',
             letterSpacing: '0.04em',
           }}>
-            TROY OS v2.5
+            TROY OS v{OS_VERSION}
           </div>
         </div>
 
@@ -199,7 +199,7 @@ export default function AppLauncher() {
                     <div
                       className="icon-wrapper"
                       style={{
-                        fontSize: 20, width: 40, height: 40,
+                        width: 40, height: 40,
                         borderRadius: 'var(--radius-sm)',
                         background: `${app.color}12`,
                         border: `1px solid ${app.color}25`,
@@ -207,7 +207,9 @@ export default function AppLauncher() {
                         flexShrink: 0,
                         boxShadow: `0 6px 14px -4px ${app.color}18`,
                       }}
-                    >{app.emoji}</div>
+                    >
+                      <AppIcon src={iconImages[app.icon]} size={22} color={app.color} />
+                    </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden' }}>
                       <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontWeight: 600, letterSpacing: '-0.005em' }}>
