@@ -1,7 +1,7 @@
 export interface AppConfig {
   id: string;
   name: string;
-  emoji: string;
+  icon: string;
   color: string;
   category: string;
   description: string;
@@ -15,7 +15,7 @@ export const APPS: AppConfig[] = [
   {
     id: 'browser',
     name: 'Browser',
-    emoji: '🌐',
+    icon: 'browser',
     color: '#3b82f6',
     category: 'Productivity',
     description: 'Web Workspace',
@@ -26,7 +26,7 @@ export const APPS: AppConfig[] = [
   {
     id: 'notes',
     name: 'Notes',
-    emoji: '📝',
+    icon: 'notes',
     color: '#ec4899',
     category: 'Productivity',
     description: 'Smart Notepad',
@@ -35,8 +35,8 @@ export const APPS: AppConfig[] = [
   },
   {
     id: 'ai',
-    name: 'AI Assistant',
-    emoji: '🤖',
+    name: 'Troy AI',
+    icon: 'ai',
     color: '#f59e0b',
     category: 'Productivity',
     description: 'Neural Assistant',
@@ -48,7 +48,7 @@ export const APPS: AppConfig[] = [
   {
     id: 'gaming',
     name: 'Gaming Hub',
-    emoji: '🎮',
+    icon: 'games',
     color: '#8b5cf6',
     category: 'Entertainment',
     description: 'Game Launcher',
@@ -60,7 +60,7 @@ export const APPS: AppConfig[] = [
   {
     id: 'files',
     name: 'Files',
-    emoji: '📂',
+    icon: 'files',
     color: '#06b6d4',
     category: 'System',
     description: 'File Manager',
@@ -70,7 +70,7 @@ export const APPS: AppConfig[] = [
   {
     id: 'terminal',
     name: 'Terminal',
-    emoji: '⌨️',
+    icon: 'terminal',
     color: '#10b981',
     category: 'System',
     description: 'Command Interface',
@@ -80,7 +80,7 @@ export const APPS: AppConfig[] = [
   {
     id: 'settings',
     name: 'Settings',
-    emoji: '⚙️',
+    icon: 'settings',
     color: '#64748b',
     category: 'System',
     description: 'System Preferences',

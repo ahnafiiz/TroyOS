@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useOSStore } from '@/store/useOSStore';
 import { OS_VERSION } from '@/store/useOSStore';
 import { OS_BUILD } from '@/store/useOSStore';
+import AppIcon from '@/components/AppIcon';
 
 import type {
   OSState,
@@ -21,7 +22,6 @@ import type {
 
 import { WALLPAPERS } from '@/config/themes';
 
-
 const PREMIUM_FONTS = [
   { name: 'Geist Sans',       value: 'var(--font-geist-sans), sans-serif',    preview: 'Aa' },
   { name: 'Inter',            value: 'var(--font-inter), sans-serif',          preview: 'Aa' },
@@ -36,12 +36,25 @@ const ACCENT_PRESETS = [
   { name: 'Violet',  color: '#8b5cf6' },
   { name: 'Rose',    color: '#f43f5e' },
   { name: 'Emerald', color: '#10b981' },
-  { name: 'Amber',   color: '#f59e0b' },
+  { name: 'Orange',   color: '#f59e0b' },
   { name: 'Cyan',    color: '#06b6d4' },
   { name: 'Coral',   color: '#f97316' },
   { name: 'Indigo',  color: '#6366f1' },
   { name: 'Lime',    color: '#84cc16' },
   { name: 'Pink',    color: '#ec4899' },
+];
+
+const ICON_COLOR_PRESETS = [
+  { name: 'White',     color: '#ffffff' },
+  { name: 'Azure',     color: '#3b82f6' },
+  { name: 'Violet',    color: '#4c00ff' },
+  { name: 'Rose',      color: '#ff143b' },
+  { name: 'Emerald',   color: '#00ffaa' },
+  { name: 'Orange',    color: '#f59e0b' },
+  { name: 'Cyan',      color: '#06b6d4' },
+  { name: 'Coral',     color: '#f97316' },
+  { name: 'Soft Grey', color: '#94a3b8' },
+  { name: 'Gold',      color: '#eab308' },
 ];
 
 const CLOCK_PRESETS = [
@@ -142,6 +155,7 @@ interface AppearanceTabProps {
   setTempWallpaperUrl: (v: string) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   handleLocalImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  icons: Record<string, string>;
 }
 
 interface ClockTabProps {
@@ -157,10 +171,12 @@ interface DesktopTabProps {
   taskbarPosition: DockPosition;
   taskbarHeight: number;
   dockStyle: DockStyle;
-notificationPosition: NotificationPosition;
+  notificationPosition: NotificationPosition;
   launcherPosition: LauncherPosition;
+  iconColor: string;
   store: OSState;
   accentColor: string;
+  icons: Record<string, string>;
 }
 
 interface SystemTabProps {
@@ -174,6 +190,7 @@ interface SystemTabProps {
   windowAnimation: WindowAnimationCurve;
   store: OSState;
   accentColor: string;
+  icons: Record<string, string>;
 }
 
 interface ToggleProps {
@@ -188,12 +205,15 @@ interface AdvancedTabProps {
   cursorStyle: CursorStyle;
   store: OSState;
   accentColor: string;
+  icons: Record<string, string>;
 }
 
 // ── Root component ───────────────────────────────────────────────────────────
 
 export default function Settings() {
   const store = useOSStore();
+  const icons = useOSStore(s => s.iconImages);
+
   const [activeTab, setActiveTab]               = useState<TabId>('canvas');
   const [tempWallpaperUrl, setTempWallpaperUrl] = useState('');
   const [resetPhase, setResetPhase]             = useState<ResetPhase>('idle');
@@ -209,6 +229,7 @@ export default function Settings() {
   const uiOpacity        = store.uiOpacity        ?? 0.75;
   const borderRadius     = store.uiBorderRadius   ?? 16;
   const isDarkMode       = store.isDarkMode       ?? true;
+  const iconColor        = store.iconColor        ?? '#ffffff';
 
   const defaultClockSettings: ClockSettings = {
     type:         'hud',
@@ -226,37 +247,29 @@ export default function Settings() {
     ...store.clockSettings,
   };
 
-const taskbarPosition      = store.dockPosition         || 'bottom';
-const dockStyle            = store.dockStyle            || 'glass';
-const windowAnimation      = store.windowAnimationCurve || 'smooth';
-const notificationPosition = store.notificationPosition || 'top-right';
-
-const showDesktopGrid      = store.showDesktopGrid      ?? true;
-const iconSize             = store.iconSize             ?? 72;
-const cursorStyle          = store.cursorStyle          || 'default';
-const particleEffects      = store.particleEffects      ?? false;
-const reducedMotion        = store.reducedMotion        ?? false;
-
-const windowBorderGlow     = store.windowBorderGlow     ?? true;
-const taskbarHeight        = store.taskbarHeight        ?? 54;
-const clockFontSize        = clockSettings.fontSize     || 48;
-const titlebarHeight       = store.titlebarHeight       ?? 40;
-const launcherPosition     = store.launcherPosition     || 'center';
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Actual reset
-  // ─────────────────────────────────────────────────────────────────────────────
+  const taskbarPosition      = store.dockPosition         || 'bottom';
+  const dockStyle            = store.dockStyle            || 'glass';
+  const windowAnimation      = store.windowAnimationCurve || 'smooth';
+  const notificationPosition = store.notificationPosition || 'top-right';
+  const showDesktopGrid      = store.showDesktopGrid      ?? true;
+  const iconSize             = store.iconSize             ?? 56;
+  const cursorStyle          = store.cursorStyle          || 'default';
+  const particleEffects      = store.particleEffects      ?? false;
+  const reducedMotion        = store.reducedMotion        ?? false;
+  const windowBorderGlow     = store.windowBorderGlow     ?? true;
+  const taskbarHeight        = store.taskbarHeight        ?? 54;
+  const clockFontSize        = clockSettings.fontSize     || 48;
+  const titlebarHeight       = store.titlebarHeight       ?? 40;
+  const launcherPosition     = store.launcherPosition     || 'center';
 
   const doActualReset = useCallback(async () => {
     window.localStorage.clear();
     window.sessionStorage.clear();
-
     document.cookie.split(';').forEach(cookie => {
       const name = cookie.split('=')[0].trim();
       document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
       document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
     });
-
     if (window.indexedDB) {
       try {
         const dbs = await window.indexedDB.databases();
@@ -265,91 +278,59 @@ const launcherPosition     = store.launcherPosition     || 'center';
         }
       } catch {}
     }
-
     if ('caches' in window) {
       try {
         const keys = await caches.keys();
         await Promise.all(keys.map(k => caches.delete(k)));
       } catch {}
     }
-
     if ('serviceWorker' in navigator) {
       try {
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map(r => r.unregister()));
       } catch {}
     }
-
     window.location.reload();
   }, []);
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Secret code listener (only active in confirm phase)
-  // ─────────────────────────────────────────────────────────────────────────────
-
   useEffect(() => {
     if (resetPhase !== 'confirm') return;
-
     const onKey = (e: KeyboardEvent) => {
       const next = [...secretBufferRef.current, e.key].slice(-SECRET_CODE.length);
       secretBufferRef.current = next;
-
       if (next.join(',') === SECRET_CODE.join(',')) {
-        // Secret code entered - skip to bootloader immediately
         setResetPhase('bootloader');
-        setTimeout(() => {
-          doActualReset();
-        }, 2000);
+        setTimeout(() => { doActualReset(); }, 2000);
       }
     };
-
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [resetPhase, doActualReset]);
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Realistic wipe sequence with smooth bootloader transition
-  // ─────────────────────────────────────────────────────────────────────────────
-
   const confirmMasterReset = async () => {
     setResetPhase('wiping');
     setWipeProgress(0);
-
     let currentProgress = 0;
     const totalWeight = WIPE_STEPS.reduce((sum, step) => sum + step.weight, 0);
-
-    // Execute each step with realistic timing
     for (let i = 0; i < WIPE_STEPS.length; i++) {
       const step = WIPE_STEPS[i];
       setWipeStep(step.label);
-
       const startPercent = currentProgress;
       const endPercent = currentProgress + (step.weight / totalWeight) * 100;
       const stepDuration = step.duration;
-      const frames = Math.ceil(stepDuration / 16); // ~60fps
-
-      // Animate progress for this step
+      const frames = Math.ceil(stepDuration / 16);
       for (let frame = 0; frame <= frames; frame++) {
         const progress = startPercent + ((endPercent - startPercent) * frame) / frames;
         setWipeProgress(progress);
         await new Promise(resolve => setTimeout(resolve, stepDuration / frames));
       }
-
       currentProgress = endPercent;
     }
-
-    // Ensure we hit 100%
     setWipeProgress(100);
     setWipeStep('System wiped successfully');
     await new Promise(resolve => setTimeout(resolve, 600));
-
-    // Smooth transition to bootloader
     setResetPhase('bootloader');
-    
-    // Wait for bootloader animation then reload
-    setTimeout(() => {
-      doActualReset();
-    }, 2000);
+    setTimeout(() => { doActualReset(); }, 2000);
   };
 
   const updateClockSetting = (key: keyof ClockSettings, value: ClockSettings[keyof ClockSettings]) => {
@@ -367,13 +348,18 @@ const launcherPosition     = store.launcherPosition     || 'center';
     reader.readAsDataURL(file);
   };
 
-  const TABS: { id: TabId; icon: string; label: string }[] = [
-    { id: 'canvas',   icon: '🎨', label: 'Appearance' },
-    { id: 'clock',    icon: '🕐', label: 'Clock' },
-    { id: 'desktop',  icon: '🖥️', label: 'Desktop' },
-    { id: 'engine',   icon: '⚙️', label: 'System' },
-    { id: 'advanced', icon: '🔧', label: 'Advanced' },
+  const TABS: { id: TabId; iconKey: string; label: string }[] = [
+    { id: 'canvas',   iconKey: 'palette',   label: 'Appearance' },
+    { id: 'clock',    iconKey: 'sync',      label: 'Clock' },
+    { id: 'desktop',  iconKey: 'appsB',     label: 'Desktop' },
+    { id: 'engine',   iconKey: 'settings',  label: 'System' },
+    { id: 'advanced', iconKey: 'terminal',  label: 'Advanced' },
   ];
+
+  const stepStartPercent = (i: number) =>
+    WIPE_STEPS.slice(0, i).reduce((a, b) => a + b.weight, 0);
+  const stepEndPercent = (i: number) =>
+    WIPE_STEPS.slice(0, i + 1).reduce((a, b) => a + b.weight, 0);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -387,9 +373,9 @@ const launcherPosition     = store.launcherPosition     || 'center';
             setTempWallpaperUrl={setTempWallpaperUrl}
             fileInputRef={fileInputRef}
             handleLocalImageUpload={handleLocalImageUpload}
+            icons={icons}
           />
         );
-
       case 'clock':
         return (
           <ClockTab
@@ -399,7 +385,6 @@ const launcherPosition     = store.launcherPosition     || 'center';
             accentColor={accentColor}
           />
         );
-
       case 'desktop':
         return (
           <DesktopTab
@@ -410,11 +395,12 @@ const launcherPosition     = store.launcherPosition     || 'center';
             dockStyle={dockStyle}
             notificationPosition={notificationPosition}
             launcherPosition={launcherPosition}
+            iconColor={iconColor}
             store={store}
             accentColor={accentColor}
+            icons={icons}
           />
         );
-
       case 'engine':
         return (
           <SystemTab
@@ -428,9 +414,9 @@ const launcherPosition     = store.launcherPosition     || 'center';
             windowAnimation={windowAnimation}
             store={store}
             accentColor={accentColor}
+            icons={icons}
           />
         );
-
       case 'advanced':
         return (
           <AdvancedTab
@@ -439,19 +425,13 @@ const launcherPosition     = store.launcherPosition     || 'center';
             cursorStyle={cursorStyle}
             store={store}
             accentColor={accentColor}
+            icons={icons}
           />
         );
-
       default:
         return null;
     }
   };
-
-  // ── Shared step progress helper used in wipe modal ─────────────────────────
-  const stepStartPercent = (i: number) =>
-    WIPE_STEPS.slice(0, i).reduce((a, b) => a + b.weight, 0);
-  const stepEndPercent = (i: number) =>
-    WIPE_STEPS.slice(0, i + 1).reduce((a, b) => a + b.weight, 0);
 
   return (
     <div className="settings-root" style={{ height: '100%', display: 'flex', color: '#fff', background: 'rgba(8,10,16,0.6)', backdropFilter: 'blur(40px)', fontFamily: systemFontFamily, overflow: 'hidden' }}>
@@ -459,15 +439,8 @@ const launcherPosition     = store.launcherPosition     || 'center';
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes pulse-red { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
         @keyframes fade-in { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }
-        @keyframes bootloader-fade { 
-          0% { opacity:0; transform:scale(0.95); } 
-          50% { opacity:1; transform:scale(1); }
-          100% { opacity:1; transform:scale(1); }
-        }
-        @keyframes pulse-glow { 
-          0%, 100% { box-shadow: 0 0 20px rgba(59,130,246,0.3); }
-          50% { box-shadow: 0 0 40px rgba(59,130,246,0.6); }
-        }
+        @keyframes bootloader-fade { 0% { opacity:0; transform:scale(0.95); } 50% { opacity:1; transform:scale(1); } 100% { opacity:1; transform:scale(1); } }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px rgba(59,130,246,0.3); } 50% { box-shadow: 0 0 40px rgba(59,130,246,0.6); } }
         .settings-root, .settings-root * { font-family: ${systemFontFamily} !important; }
         .s-slider { -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:2px; background:rgba(255,255,255,0.1); outline:none; }
         .s-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:${accentColor}; cursor:pointer; border:2px solid #080a10; box-shadow:0 0 8px ${accentColor}66; transition:transform 0.15s; }
@@ -504,29 +477,41 @@ const launcherPosition     = store.launcherPosition     || 'center';
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <div style={{ width: 188, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.05)', padding: '20px 12px', display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.2)', justifyContent: 'space-between', gap: 8 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ padding: '4px 6px 16px 6px', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: 8 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: accentColor, textTransform: 'uppercase', letterSpacing: '0.14em' }}>TROY OS</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginTop: 3, letterSpacing: '-0.02em' }}>Personalize</div>
+          <div style={{ padding: '4px 6px 16px 6px', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AppIcon src={icons.palette} size={18} color="none" style={{ opacity: 0.8 }} />
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: accentColor, textTransform: 'uppercase', letterSpacing: '0.14em' }}>TROY OS</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginTop: 3, letterSpacing: '-0.02em' }}>Personalize</div>
+            </div>
           </div>
           {TABS.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`s-nav-item ${activeTab === tab.id ? 's-nav-active' : 's-nav-inactive'}`}
               style={{ border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: activeTab === tab.id ? '#fff' : undefined }}
             >
-              <span style={{ fontSize: 16 }}>{tab.icon}</span>
+              <AppIcon
+                src={icons[tab.iconKey]}
+                size={16}
+                color="none"
+                style={{
+                  opacity: activeTab === tab.id ? 1 : 0.4,
+                  filter: activeTab === tab.id ? `brightness(0) invert(1) drop-shadow(0 0 4px ${accentColor})` : 'brightness(0) invert(1) opacity(0.4)',
+                }}
+              />
               <span style={{ fontSize: 12, fontWeight: 600 }}>{tab.label}</span>
             </button>
           ))}
         </div>
 
-        {/* Nuclear Reset button */}
+        {/* Reset button */}
         <button
           onClick={() => setResetPhase('confirm')}
           style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(248,113,113,0.2)', background: 'rgba(248,113,113,0.06)', color: 'rgba(248,113,113,0.7)', fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 8 }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.12)'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.06)'; }}
         >
-          <span>⚠️</span> Fresh Reset
+          <AppIcon src={icons.sync} size={14} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.7)' }} />
+          Fresh Reset
         </button>
       </div>
 
@@ -545,207 +530,94 @@ const launcherPosition     = store.launcherPosition     || 'center';
           transition: 'background 0.6s ease',
         }}>
           {resetPhase === 'bootloader' ? (
-            // ── BOOTLOADER SCREEN ──────────────────────────────────────────
-            <div style={{
-              textAlign: 'center',
-              animation: 'bootloader-fade 0.8s ease',
-            }}>
-              <div style={{
-                fontSize: 64,
-                marginBottom: 30,
-                animation: 'pulse-glow 2s ease-in-out infinite',
-                display: 'inline-block',
-              }}>
-                ⚡
+            <div style={{ textAlign: 'center', animation: 'bootloader-fade 0.8s ease' }}>
+              <div style={{ fontSize: 64, marginBottom: 30, animation: 'pulse-glow 2s ease-in-out infinite', display: 'inline-block' }}>
+                <AppIcon src={icons.sync} size={64} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.9)' }} />
               </div>
-              <div style={{
-                fontSize: 28,
-                fontWeight: 800,
-                color: '#fff',
-                marginBottom: 12,
-                letterSpacing: '-0.02em',
-              }}>
-                TROY OS
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 12, letterSpacing: '-0.02em' }}>TROY OS</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>INITIALIZING SYSTEM...</div>
+              <div style={{ width: 200, height: 3, background: 'rgba(255,255,255,0.1)', borderRadius: 999, margin: '24px auto 0', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, transparent, #3b82f6, transparent)', animation: 'slide 1.5s ease-in-out infinite' }} />
               </div>
-              <div style={{
-                fontSize: 13,
-                color: 'rgba(255,255,255,0.4)',
-                fontFamily: 'monospace',
-                letterSpacing: '0.1em',
-              }}>
-                INITIALIZING SYSTEM...
-              </div>
-              <div style={{
-                width: 200,
-                height: 3,
-                background: 'rgba(255,255,255,0.1)',
-                borderRadius: 999,
-                margin: '24px auto 0',
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  width: '100%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, transparent, #3b82f6, transparent)',
-                  animation: 'slide 1.5s ease-in-out infinite',
-                }} />
-              </div>
-              <style>{`
-                @keyframes slide {
-                  0% { transform: translateX(-100%); }
-                  100% { transform: translateX(200%); }
-                }
-              `}</style>
+              <style>{`@keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }`}</style>
             </div>
           ) : (
-            <div style={{
-              width: 460,
-              borderRadius: 22,
-              background: 'rgba(8,10,18,0.98)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              boxShadow: '0 40px 100px rgba(0,0,0,0.8)',
-              overflow: 'hidden',
-              animation: 'fade-in 0.2s ease',
-            }}>
-              {/* Danger stripe */}
+            <div style={{ width: 460, borderRadius: 22, background: 'rgba(8,10,18,0.98)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 40px 100px rgba(0,0,0,0.8)', overflow: 'hidden', animation: 'fade-in 0.2s ease' }}>
               <div style={{ height: 5, background: 'repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 14px, #1a0606 14px, #1a0606 28px)' }} />
 
-              {/* ── CONFIRM PHASE ──────────────────────────────────────────── */}
               {resetPhase === 'confirm' && (
                 <div style={{ padding: '28px 28px 26px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
-                    <div style={{
-                      width: 48, height: 48, borderRadius: 14,
-                      background: 'rgba(239,68,68,0.1)',
-                      border: '1px solid rgba(239,68,68,0.3)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 24,
-                      animation: 'pulse-red 2s ease-in-out infinite',
-                    }}>⚠️</div>
+                    <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pulse-red 2s ease-in-out infinite' }}>
+                      <AppIcon src={icons.sync} size={24} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.8)' }} />
+                    </div>
                     <div>
                       <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>Reset</div>
-                      <div style={{ fontSize: 11, color: 'rgba(239,68,68,0.75)', marginTop: 3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                        Irreversible - All Data Reset
-                      </div>
+                      <div style={{ fontSize: 11, color: 'rgba(239,68,68,0.75)', marginTop: 3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Irreversible - All Data Reset</div>
                     </div>
                   </div>
 
-                  {/* What gets wiped */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 20 }}>
                     {WIPE_STEPS.map((s, i) => (
-                      <div key={i} style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '7px 12px', borderRadius: 8,
-                        background: 'rgba(239,68,68,0.04)',
-                        border: '1px solid rgba(239,68,68,0.1)',
-                      }}>
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.1)' }}>
                         <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
                         <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>{s.label.replace('…', '')}</span>
                       </div>
                     ))}
                   </div>
 
-                  <div style={{
-                    padding: '10px 14px', borderRadius: 10,
-                    background: 'rgba(239,68,68,0.07)',
-                    border: '1px solid rgba(239,68,68,0.15)',
-                    fontSize: 11, color: 'rgba(255,255,255,0.45)',
-                    lineHeight: 1.7, marginBottom: 16,
-                  }}>
+                  <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)', fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, marginBottom: 16 }}>
                     ⚠️ Wipes every byte of stored data and reloads from factory defaults. Cannot be undone.
                   </div>
 
                   <div style={{ display: 'flex', gap: 10 }}>
-                    <button
-                      onClick={() => setResetPhase('idle')}
+                    <button onClick={() => setResetPhase('idle')}
                       style={{ flex: 1, padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.55)', cursor: 'pointer', fontWeight: 600, fontSize: 13, transition: 'all 0.2s' }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={confirmMasterReset}
-                      style={{ flex: 1.4, padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(239,68,68,0.5)', background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', color: '#fff', cursor: 'pointer', fontWeight: 800, fontSize: 13, letterSpacing: '0.03em', boxShadow: '0 4px 20px rgba(220,38,38,0.35)', transition: 'all 0.2s' }}
+                    >Cancel</button>
+                    <button onClick={confirmMasterReset}
+                      style={{ flex: 1.4, padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(239,68,68,0.5)', background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', color: '#fff', cursor: 'pointer', fontWeight: 800, fontSize: 13, letterSpacing: '0.03em', boxShadow: '0 4px 20px rgba(220,38,38,0.35)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 28px rgba(220,38,38,0.55)'; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px rgba(220,38,38,0.35)'; }}
                     >
-                      ⚠️ Reset
+                      <AppIcon src={icons.sync} size={14} color="none" style={{ filter: 'brightness(0) invert(1)' }} />
+                      Reset
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* ── WIPING PHASE ───────────────────────────────────────────── */}
               {resetPhase === 'wiping' && (
                 <div style={{ padding: '32px 28px 30px' }}>
-                  {/* Central icon */}
                   <div style={{ textAlign: 'center', marginBottom: 26 }}>
-                    <div style={{
-                      fontSize: 48, lineHeight: 1,
-                      display: 'inline-block',
-                      animation: 'spin 1.2s linear infinite',
-                    }}>
-                      ☢️
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, animation: 'spin 1.2s linear infinite' }}>
+                      <AppIcon src={icons.sync} size={48} color="none" style={{ filter: 'brightness(0) invert(1)' }} />
                     </div>
-                    <div style={{ marginTop: 12, fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
-                      Resetting... Please Wait
-                    </div>
-                    <div style={{ marginTop: 4, fontSize: 11, color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>
-                      {wipeStep}
-                    </div>
+                    <div style={{ marginTop: 12, fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>Resetting... Please Wait</div>
+                    <div style={{ marginTop: 4, fontSize: 11, color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>{wipeStep}</div>
                   </div>
 
-                  {/* Progress bar */}
                   <div style={{ marginBottom: 18 }}>
                     <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                      <div style={{
-                        height: '100%', borderRadius: 4,
-                        background: 'linear-gradient(90deg, #ef4444, #f97316)',
-                        width: `${wipeProgress}%`,
-                        transition: 'width 0.05s linear',
-                      }} />
+                      <div style={{ height: '100%', borderRadius: 4, background: 'linear-gradient(90deg, #ef4444, #f97316)', width: `${wipeProgress}%`, transition: 'width 0.05s linear' }} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
-                        Wiping…
-                      </span>
-                      <span style={{
-                        fontSize: 11, fontFamily: 'monospace', fontWeight: 700,
-                        color: '#ef4444',
-                      }}>
-                        {Math.round(wipeProgress)}%
-                      </span>
+                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>Wiping…</span>
+                      <span style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 700, color: '#ef4444' }}>{Math.round(wipeProgress)}%</span>
                     </div>
                   </div>
 
-                  {/* Step checklist */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     {WIPE_STEPS.map((s, i) => {
                       const done   = wipeProgress >= stepEndPercent(i);
                       const active = !done && wipeProgress >= stepStartPercent(i);
                       return (
-                        <div key={i} style={{
-                          display: 'flex', alignItems: 'center', gap: 10,
-                          padding: '5px 10px', borderRadius: 7,
-                          background: done ? 'rgba(34,197,94,0.06)' : active ? 'rgba(239,68,68,0.06)' : 'transparent',
-                          opacity: done || active ? 1 : 0.22,
-                          transition: 'all 0.3s',
-                        }}>
-                          <span style={{
-                            fontSize: 12, width: 16, textAlign: 'center',
-                            color: done ? '#22c55e' : active ? '#fbbf24' : 'rgba(255,255,255,0.3)',
-                            transition: 'color 0.3s',
-                          }}>
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 10px', borderRadius: 7, background: done ? 'rgba(34,197,94,0.06)' : active ? 'rgba(239,68,68,0.06)' : 'transparent', opacity: done || active ? 1 : 0.22, transition: 'all 0.3s' }}>
+                          <span style={{ fontSize: 12, width: 16, textAlign: 'center', color: done ? '#22c55e' : active ? '#fbbf24' : 'rgba(255,255,255,0.3)', transition: 'color 0.3s' }}>
                             {done ? '✓' : active ? '⟳' : '○'}
                           </span>
-                          <span style={{
-                            fontSize: 11, fontFamily: 'monospace',
-                            color: done ? '#86efac' : active ? '#fbbf24' : 'rgba(255,255,255,0.3)',
-                            transition: 'color 0.3s',
-                          }}>
-                            {s.label}
-                          </span>
+                          <span style={{ fontSize: 11, fontFamily: 'monospace', color: done ? '#86efac' : active ? '#fbbf24' : 'rgba(255,255,255,0.3)', transition: 'color 0.3s' }}>{s.label}</span>
                         </div>
                       );
                     })}
@@ -762,7 +634,7 @@ const launcherPosition     = store.launcherPosition     || 'center';
 
 // ── Tab components ────────────────────────────────────────────────────────────
 
-function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTempWallpaperUrl, fileInputRef, handleLocalImageUpload }: AppearanceTabProps) {
+function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTempWallpaperUrl, fileInputRef, handleLocalImageUpload, icons }: AppearanceTabProps) {
   const savedWallpapers = store.savedWallpapers || [];
   const saveWallpaperUrl = () => {
     const url = tempWallpaperUrl.trim();
@@ -828,9 +700,7 @@ function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTe
         {WALLPAPER_STYLES.map((style) => (
           <button key={style.id} onClick={() => store.setWallpaperStyle(style.id)}
             className={`s-chip ${store.wallpaperStyle === style.id ? 's-chip-active' : 's-chip-inactive'}`}
-            style={{ border: 'none' }}>
-            {style.name}
-          </button>
+            style={{ border: 'none' }}>{style.name}</button>
         ))}
       </div>
 
@@ -849,9 +719,7 @@ function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTe
             {BACKGROUND_PRESETS.map((preset) => (
               <button key={preset.name} onClick={() => store.setCustomBackgroundGradient(preset.value)}
                 className={`s-chip ${store.customBackgroundGradient === preset.value ? 's-chip-active' : 's-chip-inactive'}`}
-                style={{ border: 'none' }}>
-                {preset.name}
-              </button>
+                style={{ border: 'none' }}>{preset.name}</button>
             ))}
           </div>
         </div>
@@ -890,10 +758,13 @@ function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTe
         >Save</button>
       </div>
       <button onClick={() => fileInputRef.current?.click()}
-        style={{ width: '100%', padding: 10, borderRadius: 10, border: '1px dashed rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+        style={{ width: '100%', padding: 10, borderRadius: 10, border: '1px dashed rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
         onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
-      >📁 Upload Local Image</button>
+      >
+        <AppIcon src={icons.files} size={14} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.5)' }} />
+        Upload Local Image
+      </button>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLocalImageUpload} style={{ display: 'none' }} />
     </>
   );
@@ -981,21 +852,33 @@ function ClockTab({ clockSettings, updateClockSetting, clockFontSize, accentColo
   );
 }
 
-function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight, dockStyle, notificationPosition, launcherPosition, store, accentColor }: DesktopTabProps) {
+function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight, dockStyle, notificationPosition, launcherPosition, iconColor, store, accentColor, icons }: DesktopTabProps) {
   return (
     <>
       <p className="s-section-title">Icon Layout</p>
       <div className="s-card">
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="s-label">Icon Size</span><span className="s-value">{iconSize}px</span></div>
-          <input type="range" min={48} max={120} value={iconSize} onChange={e => store.setIconSize(parseInt(e.target.value))} className="s-slider" />
+          <input type="range" min={40} max={100} value={iconSize} onChange={e => store.setIconSize(parseInt(e.target.value))} className="s-slider" />
         </div>
         <div className="s-row">
-          <div><div className="s-label">Show Grid Lines</div><div className="s-sublabel">Subtle alignment grid</div></div>
+          <div>
+            <div className="s-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <AppIcon src={icons.appsB} size={13} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} />
+              Show Grid Lines
+            </div>
+            <div className="s-sublabel">Subtle alignment grid</div>
+          </div>
           <Toggle active={showDesktopGrid} onToggle={() => store.setShowDesktopGrid(!showDesktopGrid)} accentColor={accentColor} />
         </div>
         <div className="s-row">
-          <div><div className="s-label">Show Icon Labels</div><div className="s-sublabel">Toggle app names below icons</div></div>
+          <div>
+            <div className="s-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <AppIcon src={icons.appsB} size={13} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} />
+              Show Icon Labels
+            </div>
+            <div className="s-sublabel">Toggle app names below icons</div>
+          </div>
           <Toggle active={store.desktopIconLabelsVisible ?? true} onToggle={() => store.setDesktopIconLabelsVisible(!(store.desktopIconLabelsVisible ?? true))} accentColor={accentColor} />
         </div>
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
@@ -1008,16 +891,116 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
         </div>
       </div>
 
+      {/* ── Icon Color ─────────────────────────────────────────────────────── */}
+      <p className="s-section-title">Icon Color</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 8, marginBottom: 10 }}>
+        {ICON_COLOR_PRESETS.map(preset => (
+          <button
+            key={preset.color}
+            onClick={() => store.setIconColor(preset.color)}
+            style={{
+              padding: '10px 6px',
+              borderRadius: 10,
+              border: `2px solid ${iconColor === preset.color ? preset.color : 'transparent'}`,
+              background: iconColor === preset.color ? `${preset.color}22` : 'rgba(255,255,255,0.03)',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 5,
+              transition: 'all 0.2s',
+            }}
+          >
+            <div style={{
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              background: preset.color,
+              boxShadow: `0 0 8px ${preset.color}66`,
+              border: preset.color === '#ffffff' ? '1px solid rgba(255,255,255,0.2)' : 'none',
+            }} />
+            <span style={{
+              fontSize: 9,
+              fontWeight: 700,
+              color: iconColor === preset.color ? preset.color : 'rgba(255,255,255,0.4)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}>
+              {preset.name}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="s-card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 4 }}>
+        <div style={{
+          position: 'relative',
+          width: 40,
+          height: 40,
+          borderRadius: 10,
+          background: iconColor,
+          flexShrink: 0,
+          overflow: 'hidden',
+          boxShadow: `0 4px 12px ${iconColor}55`,
+          border: '1px solid rgba(255,255,255,0.1)',
+        }}>
+          <input
+            type="color"
+            value={iconColor}
+            onChange={e => store.setIconColor(e.target.value)}
+            style={{ position: 'absolute', inset: '-8px', width: 56, height: 56, cursor: 'pointer', border: 'none', background: 'none' }}
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div className="s-label">Custom Icon Color</div>
+          <div style={{ fontSize: 11, color: iconColor === '#ffffff' ? 'rgba(255,255,255,0.5)' : iconColor, fontFamily: 'monospace', fontWeight: 700, marginTop: 2 }}>{iconColor}</div>
+        </div>
+        <button
+          onClick={() => store.setIconColor('#ffffff')}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 8,
+            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'rgba(255,255,255,0.05)',
+            color: 'rgba(255,255,255,0.5)',
+            fontSize: 10,
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+        >
+          Reset
+        </button>
+      </div>
+
+      <div className="s-card" style={{ marginBottom: 10 }}>
+        <div className="s-row">
+          <div>
+            <div className="s-label">Adaptive Icon Tint</div>
+            <div className="s-sublabel">Match icon color to accent color</div>
+          </div>
+          <Toggle
+            active={iconColor === accentColor}
+            onToggle={() => store.setIconColor(iconColor === accentColor ? '#ffffff' : accentColor)}
+            accentColor={accentColor}
+          />
+        </div>
+      </div>
+
       <p className="s-section-title">Taskbar</p>
       <div className="s-card">
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-          <span className="s-label">Position</span>
+          <span className="s-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <AppIcon src={icons.tabs} size={13} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} />
+            Position
+          </span>
           <div style={{ display: 'flex', gap: 6 }}>
             {TASKBAR_POSITIONS.map(p => (
               <button key={p.id} onClick={() => store.setDockPosition(p.id as DockPosition)}
                 className={`s-chip ${taskbarPosition === p.id ? 's-chip-active' : 's-chip-inactive'}`}
-                style={{ flex: 1, border: 'none' }}
-              >{p.icon} {p.name}</button>
+                style={{ flex: 1, border: 'none' }}>{p.icon} {p.name}</button>
             ))}
           </div>
         </div>
@@ -1041,55 +1024,27 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
         </div>
       </div>
 
-<p className="s-section-title">Notifications</p>
-
-<div className="s-card">
-  <div
-    className="s-row"
-    style={{
-      flexDirection: 'column',
-      alignItems: 'stretch',
-      gap: 8
-    }}
-  >
-    <span className="s-label">Position</span>
-
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(2,1fr)',
-        gap: 6
-      }}
-    >
-      {NOTIFICATION_POSITIONS.map((p) => (
-        <button
-          key={p.id}
-          onClick={() =>
-            store.setNotificationPosition(
-              p.id as NotificationPosition
-            )
-          }
-          className={`s-chip ${
-            notificationPosition === p.id
-              ? 's-chip-active'
-              : 's-chip-inactive'
-          }`}
-          style={{
-            border: 'none',
-            fontSize: 10
-          }}
-        >
-          {p.name}
-        </button>
-      ))}
-    </div>
-  </div>
-</div>
+      <p className="s-section-title">Notifications</p>
+      <div className="s-card">
+        <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+          <span className="s-label">Position</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 6 }}>
+            {NOTIFICATION_POSITIONS.map((p) => (
+              <button key={p.id} onClick={() => store.setNotificationPosition(p.id as NotificationPosition)}
+                className={`s-chip ${notificationPosition === p.id ? 's-chip-active' : 's-chip-inactive'}`}
+                style={{ border: 'none', fontSize: 10 }}>{p.name}</button>
+            ))}
+          </div>
+        </div>
+      </div>
 
       <p className="s-section-title">App Launcher</p>
       <div className="s-card">
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-          <span className="s-label">Launcher Position</span>
+          <span className="s-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <AppIcon src={icons.appsB} size={13} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} />
+            Launcher Position
+          </span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 6 }}>
             {(['bottom-left', 'bottom-right', 'center', 'top-left'] as LauncherPosition[]).map(pos => (
               <button key={pos} onClick={() => store.setLauncherPosition(pos)}
@@ -1103,7 +1058,7 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
   );
 }
 
-function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, borderRadius, titlebarHeight, windowBorderGlow, windowAnimation, store, accentColor }: SystemTabProps) {
+function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, borderRadius, titlebarHeight, windowBorderGlow, windowAnimation, store, accentColor, icons }: SystemTabProps) {
   return (
     <>
       <p className="s-section-title">Typography</p>
@@ -1175,7 +1130,13 @@ function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, border
           <input type="range" min={28} max={56} value={titlebarHeight} onChange={e => store.setTitlebarHeight(parseInt(e.target.value))} className="s-slider" />
         </div>
         <div className="s-row">
-          <div><div className="s-label">Active Window Glow</div><div className="s-sublabel">Accent-colored border glow</div></div>
+          <div>
+            <div className="s-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <AppIcon src={icons.newW} size={13} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} />
+              Active Window Glow
+            </div>
+            <div className="s-sublabel">Accent-colored border glow</div>
+          </div>
           <Toggle active={windowBorderGlow} onToggle={() => store.setWindowBorderGlow(!windowBorderGlow)} accentColor={accentColor} />
         </div>
       </div>
@@ -1192,76 +1153,60 @@ function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, border
   );
 }
 
-function AdvancedTab({ reducedMotion, particleEffects, cursorStyle, store, accentColor }: AdvancedTabProps) {
+function AdvancedTab({ reducedMotion, particleEffects, cursorStyle, store, accentColor, icons }: AdvancedTabProps) {
   return (
     <>
       <p className="s-section-title">Accessibility</p>
-
       <div className="s-card">
         <div className="s-row">
           <div>
             <div className="s-label">Reduce Motion</div>
             <div className="s-sublabel">Disable non-essential animations</div>
           </div>
-          <Toggle
-            active={reducedMotion}
-            onToggle={() => store.setReducedMotion(!reducedMotion)}
-            accentColor={accentColor}
-          />
+          <Toggle active={reducedMotion} onToggle={() => store.setReducedMotion(!reducedMotion)} accentColor={accentColor} />
         </div>
       </div>
 
       <p className="s-section-title">Visual FX</p>
-
       <div className="s-card">
         <div className="s-row">
           <div>
             <div className="s-label">Particle Effects</div>
             <div className="s-sublabel">Ambient desktop particles</div>
           </div>
-          <Toggle
-            active={particleEffects}
-            onToggle={() => store.setParticleEffects(!particleEffects)}
-            accentColor={accentColor}
-          />
+          <Toggle active={particleEffects} onToggle={() => store.setParticleEffects(!particleEffects)} accentColor={accentColor} />
         </div>
       </div>
 
       <p className="s-section-title">Cursor</p>
-
       <div className="s-card">
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-          <span className="s-label">Cursor Style</span>
+          <span className="s-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <AppIcon src={icons.cursorE} size={13} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} />
+            Cursor Style
+          </span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 6 }}>
             {CURSOR_STYLES.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => store.setCursorStyle(c.id as CursorStyle)}
+              <button key={c.id} onClick={() => store.setCursorStyle(c.id as CursorStyle)}
                 className={`s-chip ${cursorStyle === c.id ? 's-chip-active' : 's-chip-inactive'}`}
-                style={{ border: 'none', fontSize: 10 }}
-              >
-                {c.name}
-              </button>
+                style={{ border: 'none', fontSize: 10 }}>{c.name}</button>
             ))}
           </div>
         </div>
       </div>
 
       <p className="s-section-title">System Info</p>
-
       <div className="s-card">
         {[
           ['OS Version', OS_VERSION],
-          ['Build', OS_BUILD],
-          ['Kernel', 'Troy 6.1.0-lts'],
-          ['Shell', 'NextShell 14'],
-          ['Renderer', 'WebGL 2.0'],
+          ['Build',      OS_BUILD],
+          ['Kernel',     'Troy 6.1.0-lts'],
+          ['Shell',      'NextShell 14'],
+          ['Renderer',   'WebGL 2.0'],
         ].map(([label, value]) => (
           <div key={label} className="s-row">
             <span className="s-label">{label}</span>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', fontWeight: 600 }}>
-              {value}
-            </span>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', fontWeight: 600 }}>{value}</span>
           </div>
         ))}
       </div>

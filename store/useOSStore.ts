@@ -2,8 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 /* TYPES (unchanged) */
-export const OS_VERSION = "3.1.2";
-export const OS_BUILD = "18-05-2026";
+export const OS_VERSION = "3.5.7";
+export const OS_BUILD = "19-05-2026";
 
 export interface WindowState {
   id: string;
@@ -122,7 +122,9 @@ export type WindowAnimationCurve =
   | "snappy"
   | "retro-pop";
 
-/* STORE */
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* STORE INTERFACE                                                             */
+/* ─────────────────────────────────────────────────────────────────────────── */
 
 export interface OSState {
   /* WINDOWS */
@@ -214,6 +216,14 @@ export interface OSState {
   accentColor: string;
   setAccentColor: (color: string) => void;
 
+  /* ── NEW: Global icon colour ─────────────────────────────────────────── */
+  /**
+   * Hex colour applied to every SVG icon via CSS filter.
+   * Defaults to white (#ffffff) so icons are visible on dark backgrounds.
+   */
+  iconColor: string;
+  setIconColor: (color: string) => void;
+  /* ─────────────────────────────────────────────────────────────────────── */
 
   /* TASKBAR */
   taskbarHeight: number;
@@ -299,18 +309,24 @@ export interface OSState {
   iconPositions: Record<string, { x: number; y: number }>;
   setIconPosition: (id: string, position: { x: number; y: number }) => void;
 
+  /* ICONS */
+  iconImages: Record<string, string>;
+  setIconImage: (id: string, image: string) => void;
+  removeIconImage: (id: string) => void;
+
   /* NOTIFICATIONS */
   notifications: NotificationItem[];
   addNotification: (title: string, message: string, icon?: string) => void;
   removeNotification: (id: string) => void;
 }
 
-/* STORE IMPLEMENTATION */
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* STORE IMPLEMENTATION                                                        */
+/* ─────────────────────────────────────────────────────────────────────────── */
 
 export const useOSStore = create<OSState>()(
   persist(
     (set) => ({
-
 
       /* WINDOWS */
       windows: [],
@@ -496,6 +512,11 @@ export const useOSStore = create<OSState>()(
       accentColor: "#60a5fa",
       setAccentColor: (color) => set({ accentColor: color }),
 
+      /* ── Global icon colour ─────────────────────────────────────────── */
+      iconColor: "#ffffff",
+      setIconColor: (color) => set({ iconColor: color }),
+      /* ─────────────────────────────────────────────────────────────────── */
+
       /* TASKBAR */
       taskbarHeight: 56,
       setTaskbarHeight: (height) => set({ taskbarHeight: height }),
@@ -547,7 +568,7 @@ export const useOSStore = create<OSState>()(
       cursorStyle: "default",
       setCursorStyle: (style) => set({ cursorStyle: style }),
 
-      iconSize: 72,
+      iconSize: 56,          // ← reduced from 72 (was too large)
       setIconSize: (size) => set({ iconSize: size }),
 
       snapToGridEnabled: true,
@@ -581,7 +602,7 @@ export const useOSStore = create<OSState>()(
       setWindowBorderGlow: (value) =>
         set({ windowBorderGlow: value }),
 
-      /* DESKTOP ICONS */
+      /* ICONS */
       iconPositions: {},
       setIconPosition: (id, position) =>
         set((state) => ({
@@ -590,6 +611,49 @@ export const useOSStore = create<OSState>()(
             [id]: position,
           },
         })),
+
+      iconImages: {
+        // apps
+        ai: "/icons/apps/ai.svg",
+        browser: "/icons/apps/browser.svg",
+        files: "/icons/apps/files.svg",
+        games: "/icons/apps/games.svg",
+        notes: "/icons/apps/notes.svg",
+        settings: "/icons/apps/settings.svg",
+        terminal: "/icons/apps/terminal.svg",
+
+        // system ui
+        appsB: "/icons/sui/apps-button.svg",
+        clock: "/icons/sui/clock.svg",
+        close: "/icons/sui/close.svg",
+        cursorE: "/icons/sui/cursor-expand.svg",
+        cursorM: "/icons/sui/cursor-move.svg",
+        home: "/icons/sui/home.svg",
+        tabs: "/icons/sui/laptop-tabs.svg",
+        maximise: "/icons/sui/apps-button.svg",
+        minimise: "/icons/sui/minimize.svg",
+        palette: "/icons/sui/palette.svg",
+        newW: "/icons/sui/new-window.svg",
+        redo: "/icons/sui/redo.svg",
+        undo: "/icons/sui/undo.svg",
+        send: "/icons/sui/up-send.svg",
+        sync: "/icons/sui/update-refresh.svg",
+      },
+
+      setIconImage: (id, image) =>
+        set((state) => ({
+          iconImages: {
+            ...state.iconImages,
+            [id]: image,
+          },
+        })),
+
+      removeIconImage: (id) =>
+        set((state) => {
+          const updated = { ...state.iconImages };
+          delete updated[id];
+          return { iconImages: updated };
+        }),
 
       /* NOTIFICATIONS */
       notifications: [],

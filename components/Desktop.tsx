@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useOSStore } from '@/store/useOSStore';
+import { OS_VERSION } from '@/store/useOSStore';
 import { WALLPAPERS } from '@/config/themes';
 import { APPS } from '@/config/apps';
 import Window from './Window';
 import Taskbar from './Taskbar';
 import AppLauncher from './AppLauncher';
+import AppIcon from './AppIcon';     // ← NEW: centralised icon renderer
 
 import BrowserApp  from './apps/BrowserApp';
 import GamingHub   from './apps/GamingHub';
@@ -27,10 +29,20 @@ const BUILTIN_GAMES: Record<number, React.ReactNode> = {
 };
 
 const GRID_STEP  = 100;
-const ICON_SIZE  = 84;
+
+// ── Icon sizing constants ─────────────────────────────────────────────────────
+/**
+ * The iconSize stored in Zustand is the CELL size (the invisible bounding box
+ * that occupies grid space).  The visible icon image is a fraction of that cell.
+ *
+ * ICON_IMAGE_RATIO: what proportion of the cell the actual image fills.
+ * Keep it ≤ 0.60 so there's breathing room and a label underneath.
+ */
+const ICON_IMAGE_RATIO = 0.54;   // image is 54 % of cell width
+const DEFAULT_ICON_CELL = 64;    // default cell size in px  (was 72, reduced)
+
 const snapToGrid = (val: number) => Math.round(val / GRID_STEP) * GRID_STEP;
 
-// Reduced padding for tighter clock layout
 const CLOCK_H_PADDING = 24;
 const CLOCK_V_PADDING = 10;
 
@@ -41,16 +53,12 @@ function getClockWidth(fontSize: number, use24Hour: boolean, showSeconds = false
   const aW = fontSize * 0.44;
 
   let text = 4 * dW + cW;
-
   if (showSeconds) text += cW + 2 * dW;
-
   if (!use24Hour) {
     text += sW + 3 * aW;
   } else {
-    // extra width for 24h layout
     text += fontSize * 0.9;
   }
-
   return Math.ceil(text + CLOCK_H_PADDING * 2);
 }
 
@@ -60,7 +68,6 @@ function getClockHeight(fontSize: number, showDate: boolean): number {
   return Math.ceil(timeH + dateH + CLOCK_V_PADDING * 2);
 }
 
-// ── Universal free space finder (works for both icons and clock) ──────────────
 function findFreeGridCell(
   targetX: number,
   targetY: number,
@@ -73,19 +80,16 @@ function findFreeGridCell(
   taskbarH: number
 ): { x: number; y: number } {
   const candidates: Array<{ x: number; y: number; dist: number }> = [];
-  const EDGE_MARGIN = 8; // Reduced from 16
+  const EDGE_MARGIN = 8;
 
-  // Generate all possible grid positions with reduced strictness
   for (let x = EDGE_MARGIN; x < maxW - itemWidth - EDGE_MARGIN; x += gridStep) {
     for (let y = EDGE_MARGIN; y < maxH - taskbarH - itemHeight - EDGE_MARGIN; y += gridStep) {
-      // Check if this position overlaps with any occupied space
-      const overlaps = occupied.some(occ => 
-        x < occ.x + occ.w + 4 && // Reduced collision padding from 8
+      const overlaps = occupied.some(occ =>
+        x < occ.x + occ.w + 4 &&
         x + itemWidth > occ.x - 4 &&
         y < occ.y + occ.h + 4 &&
         y + itemHeight > occ.y - 4
       );
-
       if (!overlaps) {
         const dist = Math.hypot(x - targetX, y - targetY);
         candidates.push({ x, y, dist });
@@ -93,58 +97,11 @@ function findFreeGridCell(
     }
   }
 
-  // Sort by distance and return closest
   candidates.sort((a, b) => a.dist - b.dist);
-  
-  return candidates[0] || { 
+  return candidates[0] || {
     x: Math.max(EDGE_MARGIN, Math.min(snapToGrid(targetX), maxW - itemWidth - EDGE_MARGIN)),
-    y: Math.max(EDGE_MARGIN, Math.min(snapToGrid(targetY), maxH - taskbarH - itemHeight - EDGE_MARGIN))
+    y: Math.max(EDGE_MARGIN, Math.min(snapToGrid(targetY), maxH - taskbarH - itemHeight - EDGE_MARGIN)),
   };
-}
-
-// ── App content resolver ──────────────────────────────────────────────────────
-function getAppContent(appId: string) {
-  const gameId = parseInt(appId);
-  if (!isNaN(gameId) && BUILTIN_GAMES[gameId]) return BUILTIN_GAMES[gameId];
-
-  switch (appId) {
-    case 'browser':  return <BrowserApp />;
-    case 'gaming':   return <GamingHub />;
-    case 'terminal': return <Terminal />;
-    case 'ai':       return <AIAssistant />;
-    case 'settings': return <Settings />;
-  }
-
-  const app = APPS.find(a => a.id === appId);
-  if (app?.url) {
-    return (
-      <div style={{ width: '100%', height: '100%', background: '#12131a', display: 'flex', flexDirection: 'column' }}>
-        <div style={{
-          padding: '8px 16px', background: 'rgba(20,21,28,0.6)', backdropFilter: 'blur(10px)',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
-        }}>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
-            ⚠️ External sandbox — unresponsive frames can be opened in a new tab.
-          </span>
-          <a href={app.url} target="_blank" rel="noreferrer" style={{
-            fontSize: 11, color: '#3b82f6', fontWeight: 600, textDecoration: 'none',
-            background: 'rgba(59,130,246,0.1)', padding: '4px 10px', borderRadius: 6,
-          }}>Open in Tab ↗</a>
-        </div>
-        <iframe src={app.url} style={{ flex: 1, border: 'none', background: '#fff' }} title={app.name}
-          allow="fullscreen; autoplay"
-          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-pointer-lock" />
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, background: 'rgba(10,12,18,0.6)', backdropFilter: 'blur(10px)' }}>
-      <span style={{ fontSize: 44 }}>{app?.emoji || '📦'}</span>
-      <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Coming soon</span>
-    </div>
-  );
 }
 
 // ── Clock component ───────────────────────────────────────────────────────────
@@ -268,7 +225,7 @@ function CustomizableClock({ settings, position, onDragEnd }: CustomClockProps):
         top:  displayPos.y,
         width: clockW,
         height: clockH,
-        zIndex: 10, // Above icons (30) but below windows
+        zIndex: 10,
         cursor: isDragging ? 'grabbing' : 'grab',
         userSelect: 'none',
         display: 'flex',
@@ -316,18 +273,33 @@ function CustomizableClock({ settings, position, onDragEnd }: CustomClockProps):
 
 interface DraggableIconProps {
   appId: string;
-  emoji: string;
+  /** Absolute path to the SVG icon */
+  iconSrc: string;
   name: string;
   initialX: number;
   initialY: number;
-  iconSize: number;
+  /**
+   * Cell size in px.  The visible icon image will be `ICON_IMAGE_RATIO * cellSize`.
+   */
+  cellSize: number;
   labelSize: number;
   showLabel: boolean;
   onDragEnd?: (appId: string, x: number, y: number) => void;
   onOpen?: () => void;
 }
 
-function DraggableIcon({ appId, emoji, name, initialX, initialY, iconSize, labelSize, showLabel, onDragEnd, onOpen }: DraggableIconProps) {
+function DraggableIcon({
+  appId,
+  iconSrc,
+  name,
+  initialX,
+  initialY,
+  cellSize,
+  labelSize,
+  showLabel,
+  onDragEnd,
+  onOpen,
+}: DraggableIconProps) {
   const [dragDelta, setDragDelta] = useState<{ dx: number; dy: number } | null>(null);
   const dragStartRef = useRef<{ mx: number; my: number } | null>(null);
   const didDrag      = useRef(false);
@@ -336,9 +308,12 @@ function DraggableIcon({ appId, emoji, name, initialX, initialY, iconSize, label
   const displayX   = isDragging ? initialX + dragDelta.dx : initialX;
   const displayY   = isDragging ? initialY + dragDelta.dy : initialY;
 
-  const iconInnerSize = Math.max(34, Math.min(64, Math.round(iconSize * 0.54)));
-  const iconFontSize = Math.max(18, Math.min(26, Math.round(iconInnerSize * 0.55)));
-  const labelFontSize = showLabel ? Math.max(8, Math.min(18, labelSize)) : 0;
+  // ── Derived sizes ───────────────────────────────────────────────────────────
+  // imageSize: the actual rendered icon image square
+  const imageSize    = Math.round(cellSize * ICON_IMAGE_RATIO);
+  // imageSize is clamped to reasonable pixel bounds for quality
+  const clampedImage = Math.max(28, Math.min(72, imageSize));
+  const labelFontSize = showLabel ? Math.max(8, Math.min(14, labelSize)) : 0;
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -373,16 +348,26 @@ function DraggableIcon({ appId, emoji, name, initialX, initialY, iconSize, label
   return (
     <div
       onMouseDown={onMouseDown}
-      onDoubleClick={(e) => { e.stopPropagation(); if (!didDrag.current && onOpen) onOpen(); }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        if (!didDrag.current && onOpen) onOpen();
+      }}
+      className="desktop-icon"
       style={{
         position: 'absolute',
-        left: displayX, top: displayY,
-        width: iconSize, height: iconSize,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        cursor: isDragging ? 'grabbing' : 'grab',
-        padding: 0,
-        gap: 8,
+        left: displayX,
+        top: displayY,
+        // Cell dimensions: icon image + gap + label height
+        width: cellSize,
+        height: cellSize + (showLabel ? labelFontSize * 1.6 + 6 : 0),
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        paddingTop: Math.round((cellSize - clampedImage) / 2),
+        gap: 6,
         boxSizing: 'border-box',
+        cursor: isDragging ? 'grabbing' : 'grab',
         borderRadius: 'var(--border-radius, 12px)',
         background:     isDragging ? 'rgba(255,255,255,0.08)' : 'transparent',
         border:         `1px solid ${isDragging ? 'rgba(255,255,255,0.1)' : 'transparent'}`,
@@ -393,28 +378,58 @@ function DraggableIcon({ appId, emoji, name, initialX, initialY, iconSize, label
         zIndex: isDragging ? 9999 : 1,
         userSelect: 'none',
       }}
-      className="desktop-icon"
     >
-      <div style={{
-        fontSize: iconFontSize,
-        width: iconInnerSize, height: iconInnerSize,
-        background: 'linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 'calc(var(--border-radius,12px)*0.75)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 10px rgba(0,0,0,0.15)', flexShrink: 0,
-      }} className="desktop-icon-inner">
-        {emoji}
+      {/* Icon image bubble */}
+      <div
+        className="desktop-icon-inner"
+        style={{
+          width: clampedImage,
+          height: clampedImage,
+          borderRadius: 'calc(var(--border-radius,12px) * 0.75)',
+          background: 'linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      >
+        {/*
+          AppIcon applies the CSS filter pipeline:
+            brightness(0) → invert(1) → sepia → saturate → hue-rotate → brightness
+          This converts any black SVG to the chosen iconColor without touching source files.
+        */}
+        <AppIcon
+          src={iconSrc}
+          size={clampedImage}
+          style={{ borderRadius: 'inherit' }}
+        />
       </div>
-      <span style={{
-        display: showLabel ? 'block' : 'none',
-        fontSize: labelFontSize, fontWeight: 500, marginTop: 0, textAlign: 'center',
-        color: '#f3f4f6', textShadow: '0 1px 3px rgba(0,0,0,0.9)',
-        lineHeight: 1.15, width: '100%', padding: '0 2px',
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-      }}>
-        {name}
-      </span>
+
+      {/* Label */}
+      {showLabel && (
+        <span
+          style={{
+            fontSize: labelFontSize,
+            fontWeight: 500,
+            textAlign: 'center',
+            color: '#f3f4f6',
+            textShadow: '0 1px 3px rgba(0,0,0,0.9)',
+            lineHeight: 1.2,
+            width: '100%',
+            padding: '0 4px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            flexShrink: 0,
+          }}
+        >
+          {name}
+        </span>
+      )}
     </div>
   );
 }
@@ -431,6 +446,8 @@ export default function Desktop() {
   const iconPositionsFromStore = useOSStore(s => s.iconPositions);
   const iconPositions = useMemo(() => iconPositionsFromStore ?? {}, [iconPositionsFromStore]);
 
+  const iconImages = useOSStore((s) => s.iconImages);
+
   const openApp            = store.openApp;
   const removeNotification = store.removeNotification;
   const setIconPosition    = store.setIconPosition;
@@ -440,7 +457,7 @@ export default function Desktop() {
   const clockPosition = useMemo(() => store.clockPosition || { x: 900, y: 100 }, [store.clockPosition]);
   const setClockPosition = store.setClockPosition;
   const snapToGridEnabled = store.snapToGridEnabled ?? true;
-  const [contextMenu, setContextMenu]     = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
 
   const desktopRef = useRef<HTMLDivElement>(null);
   const [desktopSize, setDesktopSize] = useState({ w: 1280, h: 800 });
@@ -467,7 +484,7 @@ export default function Desktop() {
   const customBackgroundColor     = store.customBackgroundColor;
   const wallpaperStyle            = store.wallpaperStyle   || 'fill';
   const showDesktopGrid           = store.showDesktopGrid  ?? true;
-  const currentIconSize           = store.iconSize         ?? ICON_SIZE;
+  const currentIconSize           = store.iconSize         ?? DEFAULT_ICON_CELL;
   const desktopIconLabelsVisible  = store.desktopIconLabelsVisible ?? true;
   const desktopIconLabelSize      = store.desktopIconLabelSize ?? 11;
   const taskbarOpacity            = store.taskbarOpacity ?? 0.82;
@@ -477,13 +494,55 @@ export default function Desktop() {
   const taskbarClearance = taskbarHeight;
   const refreshDesktop = () => setDesktopRefresh((prev) => prev + 1);
 
+  const getAppContent = useCallback((appId: string) => {
+    const gameId = parseInt(appId);
+    if (!isNaN(gameId) && BUILTIN_GAMES[gameId]) return BUILTIN_GAMES[gameId];
+
+    switch (appId) {
+      case 'browser':  return <BrowserApp />;
+      case 'gaming':   return <GamingHub />;
+      case 'terminal': return <Terminal />;
+      case 'ai':       return <AIAssistant />;
+      case 'settings': return <Settings />;
+    }
+
+    const app = APPS.find(a => a.id === appId);
+
+    return (
+      <div style={{
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'column',
+        gap: 12,
+        background: 'rgba(10,12,18,0.6)',
+        backdropFilter: 'blur(10px)',
+      }}>
+        <AppIcon
+          src={iconImages[app?.icon || 'files']}
+          size={44}
+        />
+        <span style={{
+          fontSize: 13,
+          color: 'rgba(255,255,255,0.4)',
+          fontWeight: 600,
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
+        }}>
+          Coming soon
+        </span>
+      </div>
+    );
+  }, [iconImages]);
+
   const getNotificationPositionStyles = () => {
     switch (notificationPosition) {
-      case 'top-left': return { top: 30, left: 30, right: 'auto', bottom: 'auto' };
-      case 'top-right': return { top: 30, right: 30, left: 'auto', bottom: 'auto' };
+      case 'top-left':    return { top: 30, left: 30, right: 'auto', bottom: 'auto' };
+      case 'top-right':   return { top: 30, right: 30, left: 'auto', bottom: 'auto' };
       case 'bottom-left': return { bottom: 30, left: 30, right: 'auto', top: 'auto' };
       case 'bottom-right':
-      default: return { bottom: 30, right: 30, left: 'auto', top: 'auto' };
+      default:            return { bottom: 30, right: 30, left: 'auto', top: 'auto' };
     }
   };
 
@@ -553,28 +612,22 @@ export default function Desktop() {
   }), [store.clockSettings, accentColor, systemFontFamily]);
 
   const getCleanGridPos = useCallback((index: number) => {
-    const gx = 100, gy = 112, margin = 20; // Reduced from 30
+    const gx = 100, gy = 112, margin = 20;
     const maxRows = Math.max(1, Math.floor((desktopSize.h - taskbarClearance - margin * 2) / gy));
     const col = Math.floor(index / maxRows), row = index % maxRows;
     return { x: snapToGrid(margin + col * gx), y: snapToGrid(margin + row * gy) };
   }, [desktopSize, taskbarClearance]);
 
-  // Get all occupied spaces (icons + clock)
   const getAllOccupiedSpaces = useCallback(() => {
     const occupied: Array<{ x: number; y: number; w: number; h: number }> = [];
-    
-    // Add all icon positions
     APPS.forEach((app, index) => {
       const saved = iconPositions[app.id];
       const pos = saved ? { x: snapToGrid(saved.x), y: snapToGrid(saved.y) } : getCleanGridPos(index);
       occupied.push({ x: pos.x, y: pos.y, w: currentIconSize, h: currentIconSize });
     });
-    
-    // Add clock position
     const clockW = getClockWidth(clockSettings.fontSize ?? 52, clockSettings.use24Hour, clockSettings.showSeconds);
     const clockH = getClockHeight(clockSettings.fontSize ?? 52, clockSettings.showDate);
     occupied.push({ x: clockPosition.x, y: clockPosition.y, w: clockW, h: clockH });
-    
     return occupied;
   }, [iconPositions, clockPosition, clockSettings, getCleanGridPos, currentIconSize]);
 
@@ -588,54 +641,29 @@ export default function Desktop() {
       setIconPosition(appId, clampDesktopPosition(rawX, rawY, currentIconSize, currentIconSize));
       return;
     }
-
     const occupied = getAllOccupiedSpaces().filter(occ => {
       const saved = iconPositions[appId];
       if (!saved) return true;
       return !(snapToGrid(saved.x) === occ.x && snapToGrid(saved.y) === occ.y && occ.w === currentIconSize);
     });
-
-    const free = findFreeGridCell(
-      rawX, rawY,
-      GRID_STEP,
-      occupied,
-      currentIconSize,
-      currentIconSize,
-      desktopSize.w,
-      desktopSize.h,
-      taskbarClearance
-    );
-    
+    const free = findFreeGridCell(rawX, rawY, GRID_STEP, occupied, currentIconSize, currentIconSize, desktopSize.w, desktopSize.h, taskbarClearance);
     setIconPosition(appId, free);
   }, [iconPositions, getAllOccupiedSpaces, desktopSize, taskbarClearance, setIconPosition, currentIconSize, snapToGridEnabled, clampDesktopPosition]);
 
   const handleClockDragEnd = useCallback((rawX: number, rawY: number) => {
     const clockW = getClockWidth(clockSettings.fontSize ?? 52, clockSettings.use24Hour, clockSettings.showSeconds);
     const clockH = getClockHeight(clockSettings.fontSize ?? 52, clockSettings.showDate);
-
     if (!snapToGridEnabled) {
       setClockPosition(clampDesktopPosition(rawX, rawY, clockW, clockH));
       return;
     }
-
     const occupied: Array<{ x: number; y: number; w: number; h: number }> = [];
     APPS.forEach((app, index) => {
       const saved = iconPositions[app.id];
       const pos = saved ? { x: snapToGrid(saved.x), y: snapToGrid(saved.y) } : getCleanGridPos(index);
       occupied.push({ x: pos.x, y: pos.y, w: currentIconSize, h: currentIconSize });
     });
-
-    const free = findFreeGridCell(
-      rawX, rawY,
-      GRID_STEP,
-      occupied,
-      clockW,
-      clockH,
-      desktopSize.w,
-      desktopSize.h,
-      taskbarClearance
-    );
-    
+    const free = findFreeGridCell(rawX, rawY, GRID_STEP, occupied, clockW, clockH, desktopSize.w, desktopSize.h, taskbarClearance);
     setClockPosition(free);
   }, [clockSettings, iconPositions, desktopSize, taskbarClearance, getCleanGridPos, currentIconSize, snapToGridEnabled, clampDesktopPosition, setClockPosition]);
 
@@ -644,42 +672,23 @@ export default function Desktop() {
     y: Math.max(0, Math.min(wy, desktopSize.h - taskbarClearance - wh)),
   });
 
-const handleContextMenu = (e: React.MouseEvent) => {
-  e.preventDefault();
-  e.stopPropagation();
-
-  const target = e.target as HTMLElement;
-
-  if (
-    target.closest('.desktop-icon') ||
-    target.closest('[data-window]')
-  ) {
-    return;
-  }
-
-  setContextMenu({
-    x: e.clientX,
-    y: e.clientY,
-    visible: true,
-  });
-};
-
-useEffect(() => {
-  const handleMouseDown = (e: MouseEvent) => {
-    if (e.button === 0) {
-      setContextMenu(prev => ({
-        ...prev,
-        visible: false,
-      }));
-    }
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.target as HTMLElement;
+    if (target.closest('.desktop-icon') || target.closest('[data-window]')) return;
+    setContextMenu({ x: e.clientX, y: e.clientY, visible: true });
   };
 
-  window.addEventListener('mousedown', handleMouseDown);
-
-  return () => {
-    window.removeEventListener('mousedown', handleMouseDown);
-  };
-}, []);
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button === 0) {
+        setContextMenu(prev => ({ ...prev, visible: false }));
+      }
+    };
+    window.addEventListener('click', handleMouseDown);
+    return () => window.removeEventListener('click', handleMouseDown);
+  }, []);
 
   return (
     <div
@@ -696,12 +705,15 @@ useEffect(() => {
         .notif-enter { animation: notifSlide 0.5s cubic-bezier(0.16,1,0.3,1), notifFadeOut 0.4s 4.6s forwards ease-out; }
         @keyframes notifSlide { from { transform:translateY(-20px) scale(0.95);opacity:0; } to { transform:translateY(0) scale(1);opacity:1; } }
         @keyframes notifFadeOut { from { opacity:1; } to { opacity:0;transform:scale(0.92);filter:blur(4px); } }
+
+        /* Desktop icon hover: lift the image bubble */
         .desktop-icon:hover .desktop-icon-inner {
           background: linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.03)) !important;
           border-color: rgba(255,255,255,0.15) !important;
           box-shadow: 0 8px 16px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.15) !important;
           transform: translateY(-2px);
         }
+        .desktop-icon-inner { transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s; }
       `}</style>
 
       {/* Wallpaper */}
@@ -725,7 +737,7 @@ useEffect(() => {
         }} />
       )}
 
-      {/* Clock — z-index 50 (above icons at 30) */}
+      {/* Clock */}
       <CustomizableClock
         settings={clockSettings}
         position={clockPosition}
@@ -735,16 +747,16 @@ useEffect(() => {
       {/* Desktop icons */}
       {APPS.map((app, index) => {
         const saved = iconPositions[app.id];
-        const pos   = getCleanGridPos(index);
+        const pos = getCleanGridPos(index);
         return (
           <DraggableIcon
             key={app.id}
             appId={app.id}
-            emoji={app.emoji}
+            iconSrc={iconImages[app.icon]}   // ← pass src path, not Image element
             name={app.name}
             initialX={saved ? snapToGrid(saved.x) : pos.x}
             initialY={saved ? snapToGrid(saved.y) : pos.y}
-            iconSize={currentIconSize}
+            cellSize={currentIconSize}
             labelSize={desktopIconLabelSize}
             showLabel={desktopIconLabelsVisible}
             onDragEnd={handleIconDragEnd}
@@ -804,44 +816,32 @@ useEffect(() => {
         ))}
       </div>
 
-  {/* Context menu */}
-<div
-  style={{
-    position: 'absolute',
-    left: Math.min(contextMenu.x, desktopSize.w - 180),
-    top: Math.min(contextMenu.y, desktopSize.h - 100),
-
-    width: 170,
-
-    background: `rgba(15,18,25,${uiOpacity})`,
-    backdropFilter: `blur(${uiBlur}px)`,
-
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 'var(--border-radius,12px)',
-
-    padding: 6,
-
-    boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-
-    zIndex: 9999,
-
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-
-    opacity: contextMenu.visible ? 1 : 0,
-
-    transform: contextMenu.visible
-      ? 'scale(1) translateY(0px)'
-      : 'scale(0.96) translateY(6px)',
-
-    pointerEvents: contextMenu.visible ? 'auto' : 'none',
-
-    transition:
-      'opacity 140ms ease, transform 180ms cubic-bezier(0.16,1,0.3,1)',
-  }}
->
-          <button onClick={(e) => { e.stopPropagation(); refreshDesktop(); setContextMenu(p => ({ ...p, visible: false })); }} style={{
+{/* Context menu */}
+      <div style={{
+        position: 'absolute',
+        left: Math.min(contextMenu.x, desktopSize.w - 180),
+        top: Math.min(contextMenu.y, desktopSize.h - 100),
+        width: 170,
+        background: `rgba(15,18,25,${uiOpacity})`,
+        backdropFilter: `blur(${uiBlur}px)`,
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 'var(--border-radius,12px)',
+        padding: 6,
+        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        opacity: contextMenu.visible ? 1 : 0,
+        transform: contextMenu.visible ? 'scale(1) translateY(0px)' : 'scale(0.96) translateY(6px)',
+        pointerEvents: contextMenu.visible ? 'auto' : 'none',
+        transition: 'opacity 140ms ease, transform 180ms cubic-bezier(0.16,1,0.3,1)',
+      }}>
+{[
+          { label: 'Refresh', icon: '/icons/sui/update-refresh.svg', action: () => { refreshDesktop(); setContextMenu(p => ({ ...p, visible: false })); } },
+          { label: `Snap to Grid: ${snapToGridEnabled ? 'On' : 'Off'}`, icon: '/icons/sui/laptop-tabs.svg', action: () => { store.setSnapToGridEnabled(!snapToGridEnabled); setContextMenu(p => ({ ...p, visible: false })); } },
+        ].map(item => (
+          <button key={item.label} onClick={(e) => { e.stopPropagation(); item.action(); }} style={{
             background: 'transparent', border: 'none', borderRadius: 'calc(var(--border-radius,12px) - 4px)',
             color: '#fff', fontSize: 12, fontWeight: 500, textAlign: 'left', padding: '8px 12px',
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.2s',
@@ -849,33 +849,24 @@ useEffect(() => {
             onMouseEnter={e => (e.currentTarget.style.background = `${accentColor}22`)}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
-            <span style={{ color: accentColor }}>🔄</span> Refresh
+            <AppIcon src={item.icon} size={14} color={accentColor} />
+            <span>{item.label}</span>
           </button>
-          <button onClick={(e) => { e.stopPropagation(); store.setSnapToGridEnabled(!snapToGridEnabled); setContextMenu(p => ({ ...p, visible: false })); }} style={{
-            background: 'transparent', border: 'none', borderRadius: 'calc(var(--border-radius,12px) - 4px)',
-            color: '#fff', fontSize: 12, fontWeight: 500, textAlign: 'left', padding: '8px 12px',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.2s',
-          }}
-            onMouseEnter={e => (e.currentTarget.style.background = `${accentColor}22`)}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            <span style={{ color: accentColor }}>{snapToGridEnabled ? '📌' : '⭕'}</span> Snap to Grid: {snapToGridEnabled ? 'On' : 'Off'}
-          </button>
-          <hr style={{ border: 'none', height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
-          <button onClick={(e) => { e.stopPropagation(); openApp('settings'); setContextMenu(p => ({ ...p, visible: false })); }} style={{
-            background: 'transparent', border: 'none', borderRadius: 'calc(var(--border-radius,12px) - 4px)',
-            color: '#fff', fontSize: 12, fontWeight: 500, textAlign: 'left', padding: '8px 12px',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.2s',
-          }}
-            onMouseEnter={e => (e.currentTarget.style.background = `${accentColor}22`)}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            <span style={{ color: accentColor }}>🎨</span> Personalize
-          </button>
-          <hr style={{ border: 'none', height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
-          <div style={{ padding: '4px 12px', fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontWeight: 700 }}>Troy OS v2.0</div>
-        </div>
-      
+        ))}
+        <hr style={{ border: 'none', height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+        <button onClick={(e) => { e.stopPropagation(); openApp('settings'); setContextMenu(p => ({ ...p, visible: false })); }} style={{
+          background: 'transparent', border: 'none', borderRadius: 'calc(var(--border-radius,12px) - 4px)',
+          color: '#fff', fontSize: 12, fontWeight: 500, textAlign: 'left', padding: '8px 12px',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.2s',
+        }}
+          onMouseEnter={e => (e.currentTarget.style.background = `${accentColor}22`)}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          <AppIcon src="/icons/sui/palette.svg" size={14} color={accentColor} />
+          <span>Personalize</span>
+        </button>
+        <hr style={{ border: 'none', height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+<div style={{ padding: '4px 12px', fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontWeight: 700 }}>Troy OS v{OS_VERSION}</div>      </div>
 
       {/* Taskbar */}
       <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 101, pointerEvents: 'none' }}>
