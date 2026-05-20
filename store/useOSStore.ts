@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 /* TYPES (unchanged) */
-export const OS_VERSION = "3.7.2";
+export const OS_VERSION = "3.7.2 v2.5";
 export const OS_BUILD = "20-05-2026";
 
 export interface WindowState {
