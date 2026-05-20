@@ -1,60 +1,42 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-
 import { useOSStore } from '@/store/useOSStore';
-import { OS_VERSION } from '@/store/useOSStore';
-import { OS_BUILD } from '@/store/useOSStore';
+import { OS_VERSION, OS_BUILD } from '@/store/useOSStore';
 import AppIcon from '@/components/AppIcon';
 
 import type {
-  OSState,
-  ClockSettings,
-  DockPosition,
-  DockStyle,
-  LauncherPosition,
-  CursorStyle,
-  WindowAnimationCurve,
-  FontTransformStyle,
-  ThemeMode,
-  NotificationPosition,
+  OSState, ClockSettings, DockPosition, DockStyle,
+  LauncherPosition, CursorStyle, WindowAnimationCurve,
+  FontTransformStyle, ThemeMode, NotificationPosition,
 } from '@/store/useOSStore';
 
 import { WALLPAPERS } from '@/config/themes';
 
-const PREMIUM_FONTS = [
-  { name: 'Geist Sans',       value: 'var(--font-geist-sans), sans-serif',    preview: 'Aa' },
-  { name: 'Inter',            value: 'var(--font-inter), sans-serif',          preview: 'Aa' },
-  { name: 'Montserrat',       value: 'var(--font-montserrat), sans-serif',     preview: 'Aa' },
-  { name: 'Fira Code',        value: 'var(--font-fira-code), monospace',       preview: 'Aa' },
-  { name: 'Syncopate',        value: 'var(--font-syncopate), sans-serif',      preview: 'Aa' },
-  { name: 'Playfair Display', value: 'var(--font-playfair), Georgia, serif',   preview: 'Aa' },
+//Constants
+  const PREMIUM_FONTS = [
+  { name: 'Geist Sans',       value: 'var(--font-geist-sans), sans-serif',   preview: 'Aa' },
+  { name: 'Inter',            value: 'var(--font-inter), sans-serif',         preview: 'Aa' },
+  { name: 'Montserrat',       value: 'var(--font-montserrat), sans-serif',    preview: 'Aa' },
+  { name: 'Fira Code',        value: 'var(--font-fira-code), monospace',      preview: 'Aa' },
+  { name: 'Syncopate',        value: 'var(--font-syncopate), sans-serif',     preview: 'Aa' },
+  { name: 'Playfair Display', value: 'var(--font-playfair), Georgia, serif',  preview: 'Aa' },
 ];
 
 const ACCENT_PRESETS = [
-  { name: 'Azure',   color: '#3b82f6' },
-  { name: 'Violet',  color: '#8b5cf6' },
-  { name: 'Rose',    color: '#f43f5e' },
-  { name: 'Emerald', color: '#10b981' },
-  { name: 'Orange',   color: '#f59e0b' },
-  { name: 'Cyan',    color: '#06b6d4' },
-  { name: 'Coral',   color: '#f97316' },
-  { name: 'Indigo',  color: '#6366f1' },
-  { name: 'Lime',    color: '#84cc16' },
-  { name: 'Pink',    color: '#ec4899' },
+  { name: 'Azure',   color: '#3b82f6' }, { name: 'Violet',  color: '#8b5cf6' },
+  { name: 'Rose',    color: '#f43f5e' }, { name: 'Emerald', color: '#10b981' },
+  { name: 'Orange',  color: '#f59e0b' }, { name: 'Cyan',    color: '#06b6d4' },
+  { name: 'Coral',   color: '#f97316' }, { name: 'Indigo',  color: '#6366f1' },
+  { name: 'Lime',    color: '#84cc16' }, { name: 'Pink',    color: '#ec4899' },
 ];
 
 const ICON_COLOR_PRESETS = [
-  { name: 'White',     color: '#ffffff' },
-  { name: 'Azure',     color: '#3b82f6' },
-  { name: 'Violet',    color: '#4c00ff' },
-  { name: 'Rose',      color: '#ff143b' },
-  { name: 'Emerald',   color: '#00ffaa' },
-  { name: 'Orange',    color: '#f59e0b' },
-  { name: 'Cyan',      color: '#06b6d4' },
-  { name: 'Coral',     color: '#f97316' },
-  { name: 'Soft Grey', color: '#94a3b8' },
-  { name: 'Gold',      color: '#eab308' },
+  { name: 'White',     color: '#ffffff' }, { name: 'Azure',   color: '#3b82f6' },
+  { name: 'Violet',    color: '#8b5cf6' }, { name: 'Rose',    color: '#f43f5e' },
+  { name: 'Emerald',   color: '#10b981' }, { name: 'Orange',  color: '#f59e0b' },
+  { name: 'Cyan',      color: '#06b6d4' }, { name: 'Coral',   color: '#f97316' },
+  { name: 'Soft Grey', color: '#94a3b8' }, { name: 'Gold',    color: '#eab308' },
 ];
 
 const CLOCK_PRESETS = [
@@ -65,10 +47,10 @@ const CLOCK_PRESETS = [
 ];
 
 const WALLPAPER_STYLES = [
-  { id: 'cover',   name: 'Cover' },
-  { id: 'fit',     name: 'Contain' },
-  { id: 'stretch', name: 'Stretch' },
-  { id: 'tile',    name: 'Tile' },
+  { id: 'cover',   name: 'Cover'   },
+  { id: 'contain', name: 'Contain' },
+  { id: 'fill',    name: 'Fill'    },
+  { id: 'tile',    name: 'Tile'    },
 ];
 
 const BACKGROUND_PRESETS = [
@@ -79,19 +61,17 @@ const BACKGROUND_PRESETS = [
 ];
 
 const FONT_TRANSFORMS = [
-  { id: 'none',       name: 'Normal' },
-  { id: 'uppercase',  name: 'Uppercase' },
-  { id: 'lowercase',  name: 'Lowercase' },
-  { id: 'capitalize', name: 'Capitalize' },
+  { id: 'none', name: 'Normal' }, { id: 'uppercase', name: 'Uppercase' },
+  { id: 'lowercase', name: 'Lowercase' }, { id: 'capitalize', name: 'Capitalize' },
 ];
 
 const THEME_MODE_OPTIONS = [
-  { id: 'dark',   name: 'Dark' },
-  { id: 'light',  name: 'Light' },
+  { id: 'dark',   name: 'Dark'   },
+  { id: 'light',  name: 'Light'  },
   { id: 'system', name: 'System' },
-  { id: 'glass',  name: 'Glass' },
-  { id: 'neon',   name: 'Neon' },
-  { id: 'aero',   name: 'Aero' },
+  { id: 'glass',  name: 'Glass'  },
+  { id: 'neon',   name: 'Neon'   },
+  { id: 'aero',   name: 'Aero'   },
 ];
 
 const TASKBAR_POSITIONS = [
@@ -101,117 +81,94 @@ const TASKBAR_POSITIONS = [
 
 const CURSOR_STYLES = [
   { id: 'default',   name: 'System Default' },
-  { id: 'none',      name: 'Invisible' },
-  { id: 'crosshair', name: 'Crosshair' },
-  { id: 'dot',       name: 'Minimal Dot' },
+  { id: 'none',      name: 'Invisible'      },
+  { id: 'crosshair', name: 'Crosshair'      },
+  { id: 'dot',       name: 'Minimal Dot'    },
 ];
 
 const WINDOW_ANIMATIONS = [
   { id: 'smooth', name: 'Smooth Scale' },
-  { id: 'slide',  name: 'Slide In' },
-  { id: 'fade',   name: 'Fade' },
-  { id: 'none',   name: 'Instant' },
+  { id: 'slide',  name: 'Slide In'     },
+  { id: 'fade',   name: 'Fade'         },
+  { id: 'none',   name: 'Instant'      },
 ];
 
 const NOTIFICATION_POSITIONS = [
-  { id: 'top-right',    name: 'Top Right' },
-  { id: 'top-left',     name: 'Top Left' },
+  { id: 'top-right',    name: 'Top Right'    },
+  { id: 'top-left',     name: 'Top Left'     },
   { id: 'bottom-right', name: 'Bottom Right' },
-  { id: 'bottom-left',  name: 'Bottom Left' },
+  { id: 'bottom-left',  name: 'Bottom Left'  },
 ];
 
 const DOCK_STYLES = [
-  { id: 'floating',    name: 'Floating' },
-  { id: 'solid',       name: 'Solid Bar' },
+  { id: 'glass',       name: 'Glass'       },
+  { id: 'solid',       name: 'Solid Bar'   },
   { id: 'transparent', name: 'Transparent' },
-  { id: 'pill',        name: 'Pill' },
+  { id: 'pill',        name: 'Pill'        },
 ];
 
+// Wipe steps for the fake progress animation
 const WIPE_STEPS = [
   { label: 'Deleting localStorage…',    weight: 15, duration: 2800 },
-  { label: 'Deleting sessionStorage…', weight: 10, duration: 7937 },
+  { label: 'Deleting sessionStorage…',  weight: 10, duration: 7937 },
   { label: 'Deleting cookies…',         weight: 10, duration: 2100 },
-  { label: 'Deleting IndexedDB…',      weight: 20, duration: 3500 },
-  { label: 'Deleting caches…',         weight: 20, duration: 3200 },
+  { label: 'Deleting IndexedDB…',       weight: 20, duration: 3500 },
+  { label: 'Deleting caches…',          weight: 20, duration: 3200 },
   { label: 'Deleting service workers…', weight: 15, duration: 2937 },
-  { label: 'Resetting to store state…',   weight: 10, duration: 5304 },
+  { label: 'Resetting store state…',    weight: 10, duration: 5304 },
 ];
 
+// Secret combo: UP DOWN UP DOWN — skips fake progress, goes straight to boot
 const SECRET_CODE = ['ArrowUp', 'ArrowDown', 'ArrowUp', 'ArrowDown'];
 
 type WallpaperEntry = { name?: string; gradient?: string; color?: string; background?: string };
 const THEMES = WALLPAPERS as WallpaperEntry[];
-
 type TabId = 'canvas' | 'clock' | 'engine' | 'desktop' | 'advanced';
-type ResetPhase = 'idle' | 'confirm' | 'wiping' | 'bootloader';
+// Reset phases:
+//   idle      — nothing shown
+//   confirm   — fullscreen confirm overlay
+//   wiping    — fullscreen progress overlay
+//   skipping  — secret combo fired, instant fade to boot
+type ResetPhase = 'idle' | 'confirm' | 'wiping' | 'skipping';
 
-// ── Sub-component prop types ─────────────────────────────────────────────────
+// Prop types 
 
 interface AppearanceTabProps {
-  accentColor: string;
-  isDarkMode: boolean;
-  store: OSState;
-  tempWallpaperUrl: string;
-  setTempWallpaperUrl: (v: string) => void;
+  accentColor: string; isDarkMode: boolean; store: OSState;
+  tempWallpaperUrl: string; setTempWallpaperUrl: (v: string) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   handleLocalImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  icons: Record<string, string>;
+  iconColor: string;
 }
-
 interface ClockTabProps {
   clockSettings: ClockSettings;
   updateClockSetting: (key: keyof ClockSettings, value: ClockSettings[keyof ClockSettings]) => void;
-  clockFontSize: number;
-  accentColor: string;
+  clockFontSize: number; accentColor: string;
 }
-
 interface DesktopTabProps {
-  iconSize: number;
-  showDesktopGrid: boolean;
-  taskbarPosition: DockPosition;
-  taskbarHeight: number;
-  dockStyle: DockStyle;
-  notificationPosition: NotificationPosition;
-  launcherPosition: LauncherPosition;
-  iconColor: string;
-  store: OSState;
+  iconSize: number; showDesktopGrid: boolean; taskbarPosition: DockPosition;
+  taskbarHeight: number; dockStyle: DockStyle; notificationPosition: NotificationPosition;
+  launcherPosition: LauncherPosition; iconColor: string; store: OSState;
   accentColor: string;
-  icons: Record<string, string>;
 }
 
 interface SystemTabProps {
-  systemFontFamily: string;
-  systemFontSize: number;
-  uiBlur: number;
-  uiOpacity: number;
-  borderRadius: number;
-  titlebarHeight: number;
-  windowBorderGlow: boolean;
-  windowAnimation: WindowAnimationCurve;
-  store: OSState;
-  accentColor: string;
-  icons: Record<string, string>;
+  systemFontFamily: string; systemFontSize: number; uiBlur: number;
+  uiOpacity: number; borderRadius: number; titlebarHeight: number;
+  windowBorderGlow: boolean; windowAnimation: WindowAnimationCurve;
+  store: OSState; accentColor: string;
 }
-
-interface ToggleProps {
-  active: boolean;
-  onToggle: () => void;
-  accentColor: string;
-}
-
+interface ToggleProps { active: boolean; onToggle: () => void; accentColor: string; }
 interface AdvancedTabProps {
-  reducedMotion: boolean;
-  particleEffects: boolean;
-  cursorStyle: CursorStyle;
-  store: OSState;
-  accentColor: string;
-  icons: Record<string, string>;
+  reducedMotion: boolean; particleEffects: boolean; cursorStyle: CursorStyle;
+  store: OSState; accentColor: string;
 }
 
-// ── Root component ───────────────────────────────────────────────────────────
+// Root component 
 
 export default function Settings() {
   const store = useOSStore();
+
   const icons = useOSStore(s => s.iconImages);
 
   const [activeTab, setActiveTab]               = useState<TabId>('canvas');
@@ -221,32 +178,24 @@ export default function Settings() {
   const [wipeStep, setWipeStep]                 = useState('');
   const fileInputRef                            = useRef<HTMLInputElement>(null);
   const secretBufferRef                         = useRef<string[]>([]);
+  // Ref to cancel the fake wipe loop if secret combo fires mid-animation
+  const wipeAbortRef                            = useRef(false);
 
+  const accentColor  = store.accentColor  || '#3b82f6';
+  const iconColor    = store.iconColor    ?? '#ffffff';
+  const isDarkMode   = store.isDarkMode   ?? true;
+  const uiBlur       = store.uiBlur       ?? 24;
+  const uiOpacity    = store.uiOpacity    ?? 0.75;
+  const borderRadius = store.uiBorderRadius ?? 16;
   const systemFontFamily = store.systemFontFamily || 'var(--font-geist-sans), sans-serif';
   const systemFontSize   = store.systemFontSize   || 13;
-  const accentColor      = store.accentColor      || '#3b82f6';
-  const uiBlur           = store.uiBlur           ?? 24;
-  const uiOpacity        = store.uiOpacity        ?? 0.75;
-  const borderRadius     = store.uiBorderRadius   ?? 16;
-  const isDarkMode       = store.isDarkMode       ?? true;
-  const iconColor        = store.iconColor        ?? '#ffffff';
 
   const defaultClockSettings: ClockSettings = {
-    type:         'hud',
-    color:        '#ffffff',
-    glowColor:    'rgba(59,130,246,0.5)',
-    use24Hour:    true,
-    showSeconds:  false,
-    showDate:     true,
-    militaryTime: false,
-    dateFormat:   'DD/MM/YYYY',
+    type: 'hud', color: '#ffffff', glowColor: 'rgba(59,130,246,0.5)',
+    use24Hour: true, showSeconds: false, showDate: true,
+    militaryTime: false, dateFormat: 'DD/MM/YYYY',
   };
-
-  const clockSettings: ClockSettings = {
-    ...defaultClockSettings,
-    ...store.clockSettings,
-  };
-
+  const clockSettings: ClockSettings = { ...defaultClockSettings, ...store.clockSettings };
   const taskbarPosition      = store.dockPosition         || 'bottom';
   const dockStyle            = store.dockStyle            || 'glass';
   const windowAnimation      = store.windowAnimationCurve || 'smooth';
@@ -262,6 +211,7 @@ export default function Settings() {
   const titlebarHeight       = store.titlebarHeight       ?? 40;
   const launcherPosition     = store.launcherPosition     || 'center';
 
+  // ── Actual reset (runs after animation completes or combo fires) ───────────
   const doActualReset = useCallback(async () => {
     window.localStorage.clear();
     window.sessionStorage.clear();
@@ -273,64 +223,82 @@ export default function Settings() {
     if (window.indexedDB) {
       try {
         const dbs = await window.indexedDB.databases();
-        for (const db of dbs) {
-          if (db.name) window.indexedDB.deleteDatabase(db.name);
-        }
-      } catch {}
+        for (const db of dbs) { if (db.name) window.indexedDB.deleteDatabase(db.name); }
+      } catch { /* ignore */ }
     }
     if ('caches' in window) {
       try {
         const keys = await caches.keys();
         await Promise.all(keys.map(k => caches.delete(k)));
-      } catch {}
+      } catch { /* ignore */ }
     }
     if ('serviceWorker' in navigator) {
       try {
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map(r => r.unregister()));
-      } catch {}
+      } catch { /* ignore */ }
     }
     window.location.reload();
   }, []);
 
+  // Secret combo: UP DOWN UP DOWN 
+  // Only active while confirm or wiping phase is showing.
+  // Instantly aborts the fake wipe animation and dispatches 'troy:skip-to-boot'
+  // so page.tsx fades the desktop out and remounts BootScreen.
   useEffect(() => {
-    if (resetPhase !== 'confirm') return;
+    if (resetPhase !== 'confirm' && resetPhase !== 'wiping') return;
+
     const onKey = (e: KeyboardEvent) => {
       const next = [...secretBufferRef.current, e.key].slice(-SECRET_CODE.length);
       secretBufferRef.current = next;
       if (next.join(',') === SECRET_CODE.join(',')) {
-        setResetPhase('bootloader');
-        setTimeout(() => { doActualReset(); }, 2000);
+        // Abort any running fake wipe loop
+        wipeAbortRef.current = true;
+        // Transition to skipping phase — full-screen "jumping to boot" UX
+        setResetPhase('skipping');
+        // After a short polish delay, actually do the reset
+        setTimeout(() => {
+          doActualReset();
+        }, 1800);
+        // Also signal page.tsx to fade desktop out and go to boot screen
+        window.dispatchEvent(new CustomEvent('troy:skip-to-boot'));
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [resetPhase, doActualReset]);
 
+  //  Fake wipe animation (normal confirm path) 
   const confirmMasterReset = async () => {
+    wipeAbortRef.current = false;
     setResetPhase('wiping');
     setWipeProgress(0);
     let currentProgress = 0;
     const totalWeight = WIPE_STEPS.reduce((sum, step) => sum + step.weight, 0);
+
     for (let i = 0; i < WIPE_STEPS.length; i++) {
+      if (wipeAbortRef.current) return; // secret combo fired, bail out
       const step = WIPE_STEPS[i];
       setWipeStep(step.label);
       const startPercent = currentProgress;
-      const endPercent = currentProgress + (step.weight / totalWeight) * 100;
-      const stepDuration = step.duration;
-      const frames = Math.ceil(stepDuration / 16);
+      const endPercent   = currentProgress + (step.weight / totalWeight) * 100;
+      const frames       = Math.ceil(step.duration / 16);
+
       for (let frame = 0; frame <= frames; frame++) {
+        if (wipeAbortRef.current) return;
         const progress = startPercent + ((endPercent - startPercent) * frame) / frames;
         setWipeProgress(progress);
-        await new Promise(resolve => setTimeout(resolve, stepDuration / frames));
+        await new Promise(resolve => setTimeout(resolve, step.duration / frames));
       }
       currentProgress = endPercent;
     }
+
+    if (wipeAbortRef.current) return;
     setWipeProgress(100);
     setWipeStep('System wiped successfully');
     await new Promise(resolve => setTimeout(resolve, 600));
-    setResetPhase('bootloader');
-    setTimeout(() => { doActualReset(); }, 2000);
+    if (wipeAbortRef.current) return;
+    await doActualReset();
   };
 
   const updateClockSetting = (key: keyof ClockSettings, value: ClockSettings[keyof ClockSettings]) => {
@@ -343,104 +311,70 @@ export default function Settings() {
     const reader = new FileReader();
     reader.onload = ev => {
       const b64 = ev.target?.result as string;
-      if (b64) { store.setCustomWallpaper(b64); store.addNotification('System', 'Custom wallpaper loaded', '🖼️'); }
+      if (b64) {
+        store.setCustomWallpaper(b64);
+        // Save to savedWallpapers so it persists across reloads
+        store.addSavedWallpaper(b64);
+        store.addNotification('System', 'Wallpaper uploaded and saved', '🖼️');
+      }
     };
     reader.readAsDataURL(file);
   };
 
   const TABS: { id: TabId; iconKey: string; label: string }[] = [
-    { id: 'canvas',   iconKey: 'palette',   label: 'Appearance' },
-    { id: 'clock',    iconKey: 'sync',      label: 'Clock' },
-    { id: 'desktop',  iconKey: 'appsB',     label: 'Desktop' },
-    { id: 'engine',   iconKey: 'settings',  label: 'System' },
-    { id: 'advanced', iconKey: 'terminal',  label: 'Advanced' },
+    { id: 'canvas',   iconKey: 'palette',  label: 'Appearance' },
+    { id: 'clock',    iconKey: 'clock',    label: 'Clock'      },
+    { id: 'desktop',  iconKey: 'tabs',     label: 'Desktop'    },
+    { id: 'engine',   iconKey: 'settings', label: 'System'     },
+    { id: 'advanced', iconKey: 'terminal', label: 'Advanced'   },
   ];
 
   const stepStartPercent = (i: number) =>
     WIPE_STEPS.slice(0, i).reduce((a, b) => a + b.weight, 0);
-  const stepEndPercent = (i: number) =>
+  const stepEndPercent   = (i: number) =>
     WIPE_STEPS.slice(0, i + 1).reduce((a, b) => a + b.weight, 0);
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'canvas':
-        return (
-          <AppearanceTab
-            accentColor={accentColor}
-            isDarkMode={isDarkMode}
-            store={store}
-            tempWallpaperUrl={tempWallpaperUrl}
-            setTempWallpaperUrl={setTempWallpaperUrl}
-            fileInputRef={fileInputRef}
-            handleLocalImageUpload={handleLocalImageUpload}
-            icons={icons}
-          />
-        );
-      case 'clock':
-        return (
-          <ClockTab
-            clockSettings={clockSettings}
-            updateClockSetting={updateClockSetting}
-            clockFontSize={clockFontSize}
-            accentColor={accentColor}
-          />
-        );
+return <AppearanceTab accentColor={accentColor} isDarkMode={isDarkMode} store={store}
+  tempWallpaperUrl={tempWallpaperUrl} setTempWallpaperUrl={setTempWallpaperUrl}
+  fileInputRef={fileInputRef} handleLocalImageUpload={handleLocalImageUpload}
+  iconColor={iconColor} />;
+        case 'clock':
+        return <ClockTab clockSettings={clockSettings} updateClockSetting={updateClockSetting}
+          clockFontSize={clockFontSize} accentColor={accentColor} />;
       case 'desktop':
-        return (
-          <DesktopTab
-            iconSize={iconSize}
-            showDesktopGrid={showDesktopGrid}
-            taskbarPosition={taskbarPosition}
-            taskbarHeight={taskbarHeight}
-            dockStyle={dockStyle}
-            notificationPosition={notificationPosition}
-            launcherPosition={launcherPosition}
-            iconColor={iconColor}
-            store={store}
-            accentColor={accentColor}
-            icons={icons}
-          />
-        );
-      case 'engine':
-        return (
-          <SystemTab
-            systemFontFamily={systemFontFamily}
-            systemFontSize={systemFontSize}
-            uiBlur={uiBlur}
-            uiOpacity={uiOpacity}
-            borderRadius={borderRadius}
-            titlebarHeight={titlebarHeight}
-            windowBorderGlow={windowBorderGlow}
-            windowAnimation={windowAnimation}
-            store={store}
-            accentColor={accentColor}
-            icons={icons}
-          />
-        );
+return <DesktopTab iconSize={iconSize} showDesktopGrid={showDesktopGrid}
+  taskbarPosition={taskbarPosition} taskbarHeight={taskbarHeight} dockStyle={dockStyle}
+  notificationPosition={notificationPosition} launcherPosition={launcherPosition}
+  iconColor={iconColor} store={store} accentColor={accentColor} />;
+        case 'engine':
+        return <SystemTab systemFontFamily={systemFontFamily} systemFontSize={systemFontSize}
+          uiBlur={uiBlur} uiOpacity={uiOpacity} borderRadius={borderRadius}
+          titlebarHeight={titlebarHeight} windowBorderGlow={windowBorderGlow}
+          windowAnimation={windowAnimation} store={store} accentColor={accentColor} />;
       case 'advanced':
-        return (
-          <AdvancedTab
-            reducedMotion={reducedMotion}
-            particleEffects={particleEffects}
-            cursorStyle={cursorStyle}
-            store={store}
-            accentColor={accentColor}
-            icons={icons}
-          />
-        );
-      default:
-        return null;
+        return <AdvancedTab reducedMotion={reducedMotion} particleEffects={particleEffects}
+          cursorStyle={cursorStyle} store={store} accentColor={accentColor} />;
+      default: return null;
     }
   };
 
   return (
-    <div className="settings-root" style={{ height: '100%', display: 'flex', color: '#fff', background: 'rgba(8,10,16,0.6)', backdropFilter: 'blur(40px)', fontFamily: systemFontFamily, overflow: 'hidden' }}>
+    <div className="settings-root" style={{
+      height: '100%', display: 'flex', color: 'var(--text-primary)',
+      background: 'rgba(8,10,16,0.6)', backdropFilter: 'blur(40px)',
+      fontFamily: systemFontFamily, overflow: 'hidden', position: 'relative',
+    }}>
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes pulse-red { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
-        @keyframes fade-in { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }
-        @keyframes bootloader-fade { 0% { opacity:0; transform:scale(0.95); } 50% { opacity:1; transform:scale(1); } 100% { opacity:1; transform:scale(1); } }
-        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px rgba(59,130,246,0.3); } 50% { box-shadow: 0 0 40px rgba(59,130,246,0.6); } }
+        @keyframes fade-in-up { from { opacity:0; transform:translateY(16px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+        @keyframes skip-pulse { 0%,100% { box-shadow:0 0 40px rgba(59,130,246,0.3); } 50% { box-shadow:0 0 80px rgba(59,130,246,0.7); } }
+        @keyframes scanline { 0% { transform:translateY(-100%); } 100% { transform:translateY(100vh); } }
+        @keyframes logo-in { from { opacity:0; transform:scale(0.8) translateY(20px); } to { opacity:1; transform:scale(1) translateY(0); } }
+        @keyframes bar-sweep { 0% { transform:translateX(-100%); } 100% { transform:translateX(200%); } }
         .settings-root, .settings-root * { font-family: ${systemFontFamily} !important; }
         .s-slider { -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:2px; background:rgba(255,255,255,0.1); outline:none; }
         .s-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:${accentColor}; cursor:pointer; border:2px solid #080a10; box-shadow:0 0 8px ${accentColor}66; transition:transform 0.15s; }
@@ -450,7 +384,7 @@ export default function Settings() {
         .s-card { background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.06); border-radius:14px; }
         .s-row { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.04); }
         .s-row:last-child { border-bottom:none; }
-        .s-label { font-size:12px; font-weight:600; color:rgba(255,255,255,0.85); }
+        .s-label { font-size:12px; font-weight:600; color:var(--text-primary,rgba(255,255,255,0.85)); }
         .s-sublabel { font-size:10px; color:rgba(255,255,255,0.35); margin-top:2px; font-weight:500; }
         .s-value { font-size:11px; color:${accentColor}; font-weight:700; }
         .s-section-title { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.14em; color:rgba(255,255,255,0.3); margin-bottom:10px; margin-top:20px; }
@@ -474,28 +408,33 @@ export default function Settings() {
         ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:2px; }
       `}</style>
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
-      <div style={{ width: 188, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.05)', padding: '20px 12px', display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.2)', justifyContent: 'space-between', gap: 8 }}>
+      {/* Sidebar */}
+      <div style={{
+        width: 188, flexShrink: 0,
+        borderRight: '1px solid rgba(255,255,255,0.05)',
+        padding: '20px 12px', display: 'flex', flexDirection: 'column',
+        background: 'rgba(0,0,0,0.2)', justifyContent: 'space-between', gap: 8,
+      }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ padding: '4px 6px 16px 6px', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <AppIcon src={icons.palette} size={18} color="none" style={{ opacity: 0.8 }} />
+            <AppIcon src={icons.palette} size={18} color={iconColor} style={{ opacity: 0.8 }} />
             <div>
               <div style={{ fontSize: 10, fontWeight: 800, color: accentColor, textTransform: 'uppercase', letterSpacing: '0.14em' }}>TROY OS</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginTop: 3, letterSpacing: '-0.02em' }}>Personalize</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginTop: 3, letterSpacing: '-0.02em' }}>Personalize</div>
             </div>
           </div>
           {TABS.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`s-nav-item ${activeTab === tab.id ? 's-nav-active' : 's-nav-inactive'}`}
-              style={{ border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: activeTab === tab.id ? '#fff' : undefined }}
+              style={{ border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: activeTab === tab.id ? 'var(--text-primary)' : undefined }}
             >
               <AppIcon
                 src={icons[tab.iconKey]}
                 size={16}
-                color="none"
+                color={activeTab === tab.id ? iconColor : 'rgba(255,255,255,0.4)'}
                 style={{
                   opacity: activeTab === tab.id ? 1 : 0.4,
-                  filter: activeTab === tab.id ? `brightness(0) invert(1) drop-shadow(0 0 4px ${accentColor})` : 'brightness(0) invert(1) opacity(0.4)',
+                  filter:  activeTab === tab.id ? `drop-shadow(0 0 4px ${accentColor})` : 'none',
                 }}
               />
               <span style={{ fontSize: 12, fontWeight: 600 }}>{tab.label}</span>
@@ -510,120 +449,199 @@ export default function Settings() {
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.12)'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.06)'; }}
         >
-          <AppIcon src={icons.sync} size={14} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.7)' }} />
-          Fresh Reset
+          <AppIcon src={icons.sync} size={14} color="#f87171" />
+          Reset System
         </button>
       </div>
 
-      {/* ── Tab content ─────────────────────────────────────────────────────── */}
+      {/* Tab content  */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px 24px', display: 'flex', flexDirection: 'column', gap: 0 }}>
         {renderTabContent()}
       </div>
 
-      {/* ── Reset Modal ─────────────────────────────────────────────────────── */}
+      {/*FULLSCREEN RESET OVERLAY*/}
       {resetPhase !== 'idle' && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 2000,
-          background: resetPhase === 'bootloader' ? 'rgba(0,0,0,0.98)' : 'rgba(0,0,0,0.8)',
+          position: 'fixed', inset: 0, zIndex: 99999,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(12px)',
+          flexDirection: 'column',
+          background: resetPhase === 'skipping'
+            ? 'rgba(0,0,0,0.99)'
+            : 'rgba(4,5,10,0.97)',
+          backdropFilter: 'blur(24px)',
           transition: 'background 0.6s ease',
+          overflow: 'hidden',
         }}>
-          {resetPhase === 'bootloader' ? (
-            <div style={{ textAlign: 'center', animation: 'bootloader-fade 0.8s ease' }}>
-              <div style={{ fontSize: 64, marginBottom: 30, animation: 'pulse-glow 2s ease-in-out infinite', display: 'inline-block' }}>
-                <AppIcon src={icons.sync} size={64} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.9)' }} />
+          {/* Subtle scanline effect for atmosphere */}
+          {resetPhase !== 'confirm' && (
+            <div style={{
+              position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
+              background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.012) 2px, rgba(255,255,255,0.012) 4px)',
+            }} />
+          )}
+
+          {/*CONFIRM PHASE*/}
+          {resetPhase === 'confirm' && (
+            <div style={{
+              position: 'relative', zIndex: 1, textAlign: 'center',
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              gap: 0, animation: 'fade-in-up 0.35s cubic-bezier(0.16,1,0.3,1)',
+              maxWidth: 520, width: '100%', padding: '0 24px',
+            }}>
+              {/* Danger stripe top */}
+              <div style={{ width: '100%', height: 5, marginBottom: 48, borderRadius: 99, background: 'repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 14px, rgba(26,6,6,0.8) 14px, rgba(26,6,6,0.8) 28px)' }} />
+
+              {/* Icon */}
+              <div style={{
+                width: 80, height: 80, borderRadius: 24,
+                background: 'rgba(239,68,68,0.10)',
+                border: '1px solid rgba(239,68,68,0.30)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: 28, animation: 'pulse-red 2s ease-in-out infinite',
+                boxShadow: '0 0 40px rgba(239,68,68,0.15)',
+              }}>
+                <AppIcon src={icons.sync} size={40} color="#ef4444" />
               </div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 12, letterSpacing: '-0.02em' }}>TROY OS</div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>INITIALIZING SYSTEM...</div>
-              <div style={{ width: 200, height: 3, background: 'rgba(255,255,255,0.1)', borderRadius: 999, margin: '24px auto 0', overflow: 'hidden' }}>
-                <div style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, transparent, #3b82f6, transparent)', animation: 'slide 1.5s ease-in-out infinite' }} />
+
+              <div style={{ fontSize: 32, fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', marginBottom: 8 }}>
+                Reset Troy OS?
               </div>
-              <style>{`@keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }`}</style>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginBottom: 36, lineHeight: 1.6, maxWidth: 380 }}>
+                This will permanently wipe all stored data and reload to factory defaults. This cannot be undone.
+              </div>
+
+              {/* What will be deleted */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 36, width: '100%' }}>
+                {WIPE_STEPS.map((s, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.10)' }}>
+                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', flexShrink: 0, boxShadow: '0 0 6px #ef4444' }} />
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)' }}>{s.label.replace('…', '')}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Hint text */}
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.20)', marginBottom: 32, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                ↑ ↓ ↑ ↓ — skip waiting
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+                <button onClick={() => setResetPhase('idle')}
+                  style={{ flex: 1, padding: '14px', borderRadius: 14, border: '1px solid rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.55)', cursor: 'pointer', fontWeight: 600, fontSize: 14, transition: 'all 0.2s' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; }}
+                >Cancel</button>
+                <button onClick={confirmMasterReset}
+                  style={{ flex: 1.6, padding: '14px', borderRadius: 14, border: '1px solid rgba(239,68,68,0.5)', background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', color: '#fff', cursor: 'pointer', fontWeight: 800, fontSize: 14, letterSpacing: '0.02em', boxShadow: '0 4px 28px rgba(220,38,38,0.40)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 36px rgba(220,38,38,0.60)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 28px rgba(220,38,38,0.40)'; }}
+                >
+                  <AppIcon src={icons.sync} size={16} color="#ffffff" />
+                  Reset Everything
+                </button>
+              </div>
             </div>
-          ) : (
-            <div style={{ width: 460, borderRadius: 22, background: 'rgba(8,10,18,0.98)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 40px 100px rgba(0,0,0,0.8)', overflow: 'hidden', animation: 'fade-in 0.2s ease' }}>
-              <div style={{ height: 5, background: 'repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 14px, #1a0606 14px, #1a0606 28px)' }} />
+          )}
 
-              {resetPhase === 'confirm' && (
-                <div style={{ padding: '28px 28px 26px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pulse-red 2s ease-in-out infinite' }}>
-                      <AppIcon src={icons.sync} size={24} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.8)' }} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>Reset</div>
-                      <div style={{ fontSize: 11, color: 'rgba(239,68,68,0.75)', marginTop: 3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Irreversible - All Data Reset</div>
-                    </div>
-                  </div>
+          {/*  WIPE PROGRESS PHASE */}
+          {resetPhase === 'wiping' && (
+            <div style={{
+              position: 'relative', zIndex: 1, width: '100%', maxWidth: 560,
+              padding: '0 32px', textAlign: 'center',
+              animation: 'fade-in-up 0.3s cubic-bezier(0.16,1,0.3,1)',
+            }}>
+              {/* Spinning icon */}
+              <div style={{ display: 'inline-flex', marginBottom: 28, animation: 'spin 1.2s linear infinite' }}>
+                <AppIcon src={icons.sync} size={52} color="#ef4444" />
+              </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 20 }}>
-                    {WIPE_STEPS.map((s, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.1)' }}>
-                        <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>{s.label.replace('…', '')}</span>
-                      </div>
-                    ))}
-                  </div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: 8 }}>
+                Resetting System
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace', letterSpacing: '0.06em', marginBottom: 36 }}>
+                {wipeStep}
+              </div>
 
-                  <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)', fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, marginBottom: 16 }}>
-                    ⚠️ Wipes every byte of stored data and reloads from factory defaults. Cannot be undone.
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <button onClick={() => setResetPhase('idle')}
-                      style={{ flex: 1, padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.55)', cursor: 'pointer', fontWeight: 600, fontSize: 13, transition: 'all 0.2s' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; }}
-                    >Cancel</button>
-                    <button onClick={confirmMasterReset}
-                      style={{ flex: 1.4, padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(239,68,68,0.5)', background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', color: '#fff', cursor: 'pointer', fontWeight: 800, fontSize: 13, letterSpacing: '0.03em', boxShadow: '0 4px 20px rgba(220,38,38,0.35)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 28px rgba(220,38,38,0.55)'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px rgba(220,38,38,0.35)'; }}
-                    >
-                      <AppIcon src={icons.sync} size={14} color="none" style={{ filter: 'brightness(0) invert(1)' }} />
-                      Reset
-                    </button>
-                  </div>
+              {/* Main progress bar */}
+              <div style={{ marginBottom: 10, width: '100%' }}>
+                <div style={{ height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ height: '100%', borderRadius: 5, background: 'linear-gradient(90deg, #ef4444, #f97316, #ef4444)', backgroundSize: '200% 100%', width: `${wipeProgress}%`, transition: 'width 0.05s linear' }} />
                 </div>
-              )}
-
-              {resetPhase === 'wiping' && (
-                <div style={{ padding: '32px 28px 30px' }}>
-                  <div style={{ textAlign: 'center', marginBottom: 26 }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, animation: 'spin 1.2s linear infinite' }}>
-                      <AppIcon src={icons.sync} size={48} color="none" style={{ filter: 'brightness(0) invert(1)' }} />
-                    </div>
-                    <div style={{ marginTop: 12, fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>Resetting... Please Wait</div>
-                    <div style={{ marginTop: 4, fontSize: 11, color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>{wipeStep}</div>
-                  </div>
-
-                  <div style={{ marginBottom: 18 }}>
-                    <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 4, background: 'linear-gradient(90deg, #ef4444, #f97316)', width: `${wipeProgress}%`, transition: 'width 0.05s linear' }} />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>Wiping…</span>
-                      <span style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 700, color: '#ef4444' }}>{Math.round(wipeProgress)}%</span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    {WIPE_STEPS.map((s, i) => {
-                      const done   = wipeProgress >= stepEndPercent(i);
-                      const active = !done && wipeProgress >= stepStartPercent(i);
-                      return (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 10px', borderRadius: 7, background: done ? 'rgba(34,197,94,0.06)' : active ? 'rgba(239,68,68,0.06)' : 'transparent', opacity: done || active ? 1 : 0.22, transition: 'all 0.3s' }}>
-                          <span style={{ fontSize: 12, width: 16, textAlign: 'center', color: done ? '#22c55e' : active ? '#fbbf24' : 'rgba(255,255,255,0.3)', transition: 'color 0.3s' }}>
-                            {done ? '✓' : active ? '⟳' : '○'}
-                          </span>
-                          <span style={{ fontSize: 11, fontFamily: 'monospace', color: done ? '#86efac' : active ? '#fbbf24' : 'rgba(255,255,255,0.3)', transition: 'color 0.3s' }}>{s.label}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', letterSpacing: '0.06em' }}>WIPING DATA</span>
+                  <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#ef4444' }}>{Math.round(wipeProgress)}%</span>
                 </div>
-              )}
+              </div>
+
+              {/* Step list */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 24 }}>
+                {WIPE_STEPS.map((s, i) => {
+                  const done   = wipeProgress >= stepEndPercent(i);
+                  const active = !done && wipeProgress >= stepStartPercent(i);
+                  return (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px',
+                      borderRadius: 8,
+                      background: done ? 'rgba(34,197,94,0.06)' : active ? 'rgba(239,68,68,0.06)' : 'transparent',
+                      opacity: done || active ? 1 : 0.22,
+                      transition: 'all 0.3s',
+                    }}>
+                      <span style={{ fontSize: 13, width: 18, textAlign: 'center', color: done ? '#22c55e' : active ? '#fbbf24' : 'rgba(255,255,255,0.3)', transition: 'color 0.3s', flexShrink: 0 }}>
+                        {done ? '✓' : active ? '⟳' : '○'}
+                      </span>
+                      <span style={{ fontSize: 11, fontFamily: 'monospace', color: done ? '#86efac' : active ? '#fbbf24' : 'rgba(255,255,255,0.3)', transition: 'color 0.3s' }}>
+                        {s.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ marginTop: 32, fontSize: 10, color: 'rgba(255,255,255,0.15)', fontFamily: 'monospace', letterSpacing: '0.08em' }}>
+                ↑ ↓ ↑ ↓  TO SKIP
+              </div>
+            </div>
+          )}
+
+          {/* SKIP/BOOT PHASE */}
+          {resetPhase === 'skipping' && (
+            <div style={{
+              position: 'relative', zIndex: 1, textAlign: 'center',
+              animation: 'logo-in 0.5s cubic-bezier(0.16,1,0.3,1)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
+            }}>
+              {/* Animated logo */}
+              <div style={{
+                fontSize: 96, fontWeight: 900, letterSpacing: '-0.05em',
+                background: 'linear-gradient(180deg, #ffffff 30%, #3b82f6 100%)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                marginBottom: 16,
+                filter: 'drop-shadow(0 0 40px rgba(59,130,246,0.5))',
+                animation: 'skip-pulse 1.5s ease-in-out infinite',
+              }}>
+                TROY
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.9em', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginBottom: 48, paddingLeft: '0.9em' }}>
+                OS
+              </div>
+
+              <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', marginBottom: 32, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                INITIALIZING BOOT SEQUENCE
+              </div>
+
+              {/* Sweeping progress bar */}
+              <div style={{ width: 280, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 99, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{
+                  width: '60%', height: '100%',
+                  background: 'linear-gradient(90deg, transparent, #3b82f6, #60a5fa, transparent)',
+                  borderRadius: 99, animation: 'bar-sweep 1.2s ease-in-out infinite',
+                }} />
+              </div>
+
+              <div style={{ marginTop: 48, fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+                Troy OS v{OS_VERSION} · {OS_BUILD}
+              </div>
             </div>
           )}
         </div>
@@ -632,10 +650,13 @@ export default function Settings() {
   );
 }
 
-// ── Tab components ────────────────────────────────────────────────────────────
+// Tab components 
 
-function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTempWallpaperUrl, fileInputRef, handleLocalImageUpload, icons }: AppearanceTabProps) {
+function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTempWallpaperUrl, fileInputRef, handleLocalImageUpload, iconColor }: AppearanceTabProps) {  
   const savedWallpapers = store.savedWallpapers || [];
+  const icons = store.iconImages; // Get icons from store
+  const filesIcon = icons.files; // Now we can use it
+  
   const saveWallpaperUrl = () => {
     const url = tempWallpaperUrl.trim();
     if (!url) return;
@@ -670,26 +691,36 @@ function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTe
 
       <p className="s-section-title">Color Scheme</p>
       <div className="s-card" style={{ marginBottom: 4 }}>
+        {/* Dark/Light toggle — calls setThemeMode so ThemeProvider picks it up */}
         <div className="s-row">
           <div><div className="s-label">Dark Mode</div><div className="s-sublabel">Deep dark UI theme</div></div>
-          <Toggle active={isDarkMode} onToggle={() => store.setIsDarkMode(!isDarkMode)} accentColor={accentColor} />
+          <Toggle
+            active={isDarkMode}
+            onToggle={() => {
+              const next = !isDarkMode;
+              store.setIsDarkMode(next);
+              store.setThemeMode(next ? 'dark' : 'light');
+            }}
+            accentColor={accentColor}
+          />
         </div>
       </div>
 
       <p className="s-section-title">Wallpaper</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 10 }}>
         {THEMES.map((wp, i) => (
-          <div key={i} className={`wallpaper-thumb ${store.wallpaperIndex === i ? 'wallpaper-thumb-active' : ''}`}
+          <div key={i}
+            className={`wallpaper-thumb ${store.wallpaperIndex === i && !store.customWallpaper ? 'wallpaper-thumb-active' : ''}`}
             onClick={() => { store.setWallpaperIndex(i); store.setCustomWallpaper(''); }}
             style={{
               position: 'relative', minHeight: 52,
               background: wp.background && !wp.background.startsWith('http') && !wp.background.startsWith('/') && !wp.background.startsWith('blob:') && !wp.background.startsWith('data:image') ? wp.background : undefined,
               backgroundImage: wp.background && (wp.background.startsWith('http') || wp.background.startsWith('/') || wp.background.startsWith('blob:') || wp.background.startsWith('data:image')) ? `url("${wp.background}")` : undefined,
-              backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+              backgroundSize: 'cover', backgroundPosition: 'center',
             }}
           >
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', padding: 6 }}>
-              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>{wp.name || `Theme ${i + 1}`}</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>{wp.name || `Theme ${i + 1}`}</span>
             </div>
           </div>
         ))}
@@ -697,7 +728,7 @@ function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTe
 
       <p className="s-section-title">Wallpaper Style</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 10 }}>
-        {WALLPAPER_STYLES.map((style) => (
+        {WALLPAPER_STYLES.map(style => (
           <button key={style.id} onClick={() => store.setWallpaperStyle(style.id)}
             className={`s-chip ${store.wallpaperStyle === style.id ? 's-chip-active' : 's-chip-inactive'}`}
             style={{ border: 'none' }}>{style.name}</button>
@@ -712,11 +743,12 @@ function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTe
             style={{ border: 'none', background: 'transparent', width: 32, height: 32, cursor: 'pointer', borderRadius: 6 }} />
         </div>
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="s-label">Gradient Fill</span><span className="s-value">{store.customBackgroundGradient ? 'Active' : 'None'}</span></div>
-          <input type="text" value={store.customBackgroundGradient} onChange={e => store.setCustomBackgroundGradient(e.target.value)} placeholder="linear-gradient(...)"
-            style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 12px', color: '#fff', fontSize: 11, outline: 'none' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="s-label">Gradient Fill</span></div>
+          <input type="text" value={store.customBackgroundGradient} onChange={e => store.setCustomBackgroundGradient(e.target.value)}
+            placeholder="linear-gradient(...)"
+            style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-primary)', fontSize: 11, outline: 'none' }} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6 }}>
-            {BACKGROUND_PRESETS.map((preset) => (
+            {BACKGROUND_PRESETS.map(preset => (
               <button key={preset.name} onClick={() => store.setCustomBackgroundGradient(preset.value)}
                 className={`s-chip ${store.customBackgroundGradient === preset.value ? 's-chip-active' : 's-chip-inactive'}`}
                 style={{ border: 'none' }}>{preset.name}</button>
@@ -730,14 +762,14 @@ function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTe
           <p className="s-section-title">Saved Wallpapers</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 10 }}>
             {savedWallpapers.map((url, index) => (
-              <div key={`${url}-${index}`} className={`wallpaper-thumb ${store.customWallpaper === url ? 'wallpaper-thumb-active' : ''}`}
+              <div key={`${index}`}
+                className={`wallpaper-thumb ${store.customWallpaper === url ? 'wallpaper-thumb-active' : ''}`}
                 onClick={() => store.setCustomWallpaper(url)}
-                style={{ position: 'relative', minHeight: 52, backgroundImage: `url("${url}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+                style={{ position: 'relative', minHeight: 52, backgroundImage: `url("${url}")`, backgroundSize: 'cover', backgroundPosition: 'center' }}
               >
-                <button onClick={(e) => { e.stopPropagation(); store.removeSavedWallpaper(url); }}
+                <button onClick={e => { e.stopPropagation(); store.removeSavedWallpaper(url); }}
                   style={{ position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(0,0,0,0.45)', color: '#fff', cursor: 'pointer', fontSize: 12 }}
-                  title="Remove saved wallpaper"
-                >×</button>
+                  title="Remove">×</button>
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', padding: 6 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Saved {index + 1}</span>
                 </div>
@@ -748,21 +780,20 @@ function AppearanceTab({ accentColor, isDarkMode, store, tempWallpaperUrl, setTe
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, marginBottom: 8 }}>
-        <input value={tempWallpaperUrl} onChange={e => setTempWallpaperUrl(e.target.value)} placeholder="Wallpaper image URL…"
-          style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 12px', color: '#fff', fontSize: 11, outline: 'none' }} />
+        <input value={tempWallpaperUrl} onChange={e => setTempWallpaperUrl(e.target.value)}
+          placeholder="Wallpaper image URL…"
+          style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-primary)', fontSize: 11, outline: 'none' }} />
         <button onClick={() => { if (tempWallpaperUrl) store.setCustomWallpaper(tempWallpaperUrl); }}
           style={{ padding: '8px 14px', borderRadius: 8, background: accentColor, border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Apply</button>
-        <button onClick={saveWallpaperUrl}
-          style={{ padding: '8px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
-          disabled={!tempWallpaperUrl.trim()}
-        >Save</button>
+        <button onClick={saveWallpaperUrl} disabled={!tempWallpaperUrl.trim()}
+          style={{ padding: '8px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Save</button>
       </div>
       <button onClick={() => fileInputRef.current?.click()}
         style={{ width: '100%', padding: 10, borderRadius: 10, border: '1px dashed rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
         onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
       >
-        <AppIcon src={icons.files} size={14} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.5)' }} />
+<AppIcon src={filesIcon} size={14} color={iconColor} />
         Upload Local Image
       </button>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLocalImageUpload} style={{ display: 'none' }} />
@@ -800,14 +831,12 @@ function ClockTab({ clockSettings, updateClockSetting, clockFontSize, accentColo
           </button>
         ))}
       </div>
-
       <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '14px 20px', marginBottom: 4, textAlign: 'center' }}>
         <div style={{ fontSize: clockFontSize * 0.6, fontWeight: 300, letterSpacing: '-0.03em', color: clockSettings.color || '#fff', fontVariantNumeric: 'tabular-nums', textShadow: `0 0 16px ${clockSettings.glowColor || accentColor}` }}>
           {preview || '--:--'}
         </div>
         <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Live Preview</div>
       </div>
-
       <p className="s-section-title">Clock Options</p>
       <div className="s-card">
         <div className="s-row">
@@ -823,36 +852,33 @@ function ClockTab({ clockSettings, updateClockSetting, clockFontSize, accentColo
           <Toggle active={clockSettings.showDate !== false} onToggle={() => updateClockSetting('showDate', !clockSettings.showDate)} accentColor={accentColor} />
         </div>
       </div>
-
       <p className="s-section-title">Clock Font Size</p>
       <div className="s-card">
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="s-label">Size</span>
-            <span className="s-value">{clockFontSize}px</span>
-          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="s-label">Size</span><span className="s-value">{clockFontSize}px</span></div>
           <input type="range" min={34} max={96} value={clockFontSize} onChange={e => updateClockSetting('fontSize', parseInt(e.target.value))} className="s-slider" />
         </div>
       </div>
-
       <p className="s-section-title">Clock Colors</p>
       <div className="s-card">
         <div className="s-row">
           <div><div className="s-label">Text Color</div></div>
-          <input type="color" value={clockSettings.color || '#ffffff'} onChange={e => updateClockSetting('color', e.target.value)}
-            style={{ border: 'none', background: 'transparent', width: 32, height: 32, cursor: 'pointer', borderRadius: 6 }} />
+          <input type="color" value={clockSettings.color || '#ffffff'} onChange={e => updateClockSetting('color', e.target.value)} style={{ border: 'none', background: 'transparent', width: 32, height: 32, cursor: 'pointer', borderRadius: 6 }} />
         </div>
         <div className="s-row">
           <div><div className="s-label">Glow Color</div></div>
-          <input type="color" value={clockSettings.glowColor?.startsWith('#') ? clockSettings.glowColor : '#3b82f6'} onChange={e => updateClockSetting('glowColor', e.target.value)}
-            style={{ border: 'none', background: 'transparent', width: 32, height: 32, cursor: 'pointer', borderRadius: 6 }} />
+          <input type="color" value={clockSettings.glowColor?.startsWith('#') ? clockSettings.glowColor : '#3b82f6'} onChange={e => updateClockSetting('glowColor', e.target.value)} style={{ border: 'none', background: 'transparent', width: 32, height: 32, cursor: 'pointer', borderRadius: 6 }} />
         </div>
       </div>
     </>
   );
 }
 
-function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight, dockStyle, notificationPosition, launcherPosition, iconColor, store, accentColor, icons }: DesktopTabProps) {
+function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight, dockStyle, notificationPosition, launcherPosition, iconColor, store, accentColor }: DesktopTabProps) {  const desktopGridOpacity = store.desktopGridOpacity ?? 0.12;
+  const icons = store.iconImages;
+  const desktopGridColor   = store.desktopGridColor   ?? '#ffffff';
+  const snapToGridEnabled  = store.snapToGridEnabled  ?? true;
+
   return (
     <>
       <p className="s-section-title">Icon Layout</p>
@@ -862,23 +888,7 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
           <input type="range" min={40} max={100} value={iconSize} onChange={e => store.setIconSize(parseInt(e.target.value))} className="s-slider" />
         </div>
         <div className="s-row">
-          <div>
-            <div className="s-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <AppIcon src={icons.appsB} size={13} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} />
-              Show Grid Lines
-            </div>
-            <div className="s-sublabel">Subtle alignment grid</div>
-          </div>
-          <Toggle active={showDesktopGrid} onToggle={() => store.setShowDesktopGrid(!showDesktopGrid)} accentColor={accentColor} />
-        </div>
-        <div className="s-row">
-          <div>
-            <div className="s-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <AppIcon src={icons.appsB} size={13} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} />
-              Show Icon Labels
-            </div>
-            <div className="s-sublabel">Toggle app names below icons</div>
-          </div>
+          <div><div className="s-label">Show Icon Labels</div><div className="s-sublabel">App name below icons</div></div>
           <Toggle active={store.desktopIconLabelsVisible ?? true} onToggle={() => store.setDesktopIconLabelsVisible(!(store.desktopIconLabelsVisible ?? true))} accentColor={accentColor} />
         </div>
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
@@ -891,111 +901,85 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
         </div>
       </div>
 
-      {/* ── Icon Color ─────────────────────────────────────────────────────── */}
+      <p className="s-section-title">Desktop Grid</p>
+      <div className="s-card">
+        <div className="s-row">
+          <div><div className="s-label">Show Grid Lines</div><div className="s-sublabel">Subtle alignment overlay</div></div>
+          <Toggle active={showDesktopGrid} onToggle={() => store.setShowDesktopGrid(!showDesktopGrid)} accentColor={accentColor} />
+        </div>
+        {/* Grid opacity slider */}
+        <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span className="s-label">Grid Opacity</span>
+            <span className="s-value">{Math.round(desktopGridOpacity * 100)}%</span>
+          </div>
+          <input
+            type="range" min={2} max={60} value={Math.round(desktopGridOpacity * 100)}
+            onChange={e => store.setDesktopGridOpacity(parseInt(e.target.value) / 100)}
+            className="s-slider"
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              flex: 1, height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)',
+              backgroundImage: [
+                `linear-gradient(rgba(${parseInt(desktopGridColor.slice(1,3),16)},${parseInt(desktopGridColor.slice(3,5),16)},${parseInt(desktopGridColor.slice(5,7),16)},${desktopGridOpacity}) 1px, transparent 1px)`,
+                `linear-gradient(90deg, rgba(${parseInt(desktopGridColor.slice(1,3),16)},${parseInt(desktopGridColor.slice(3,5),16)},${parseInt(desktopGridColor.slice(5,7),16)},${desktopGridOpacity}) 1px, transparent 1px)`,
+              ].join(','),
+              backgroundSize: '20px 20px',
+              background: '#111',
+            }} />
+            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.06em' }}>PREVIEW</span>
+          </div>
+        </div>
+        <div className="s-row">
+          <div><div className="s-label">Grid Color</div><div className="s-sublabel">Grid line tint</div></div>
+          <input type="color" value={desktopGridColor} onChange={e => store.setDesktopGridColor(e.target.value)}
+            style={{ border: 'none', background: 'transparent', width: 32, height: 32, cursor: 'pointer', borderRadius: 6 }} />
+        </div>
+        <div className="s-row">
+          <div><div className="s-label">Snap to Grid</div><div className="s-sublabel">Icons snap to alignment grid</div></div>
+          <Toggle active={snapToGridEnabled} onToggle={() => store.setSnapToGridEnabled(!snapToGridEnabled)} accentColor={accentColor} />
+        </div>
+      </div>
+
+      {/* Icon Color */}
       <p className="s-section-title">Icon Color</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 8, marginBottom: 10 }}>
         {ICON_COLOR_PRESETS.map(preset => (
-          <button
-            key={preset.color}
-            onClick={() => store.setIconColor(preset.color)}
-            style={{
-              padding: '10px 6px',
-              borderRadius: 10,
-              border: `2px solid ${iconColor === preset.color ? preset.color : 'transparent'}`,
-              background: iconColor === preset.color ? `${preset.color}22` : 'rgba(255,255,255,0.03)',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 5,
-              transition: 'all 0.2s',
-            }}
+          <button key={preset.color} onClick={() => store.setIconColor(preset.color)}
+            style={{ padding: '10px 6px', borderRadius: 10, border: `2px solid ${iconColor === preset.color ? preset.color : 'transparent'}`, background: iconColor === preset.color ? `${preset.color}22` : 'rgba(255,255,255,0.03)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, transition: 'all 0.2s' }}
           >
-            <div style={{
-              width: 18,
-              height: 18,
-              borderRadius: '50%',
-              background: preset.color,
-              boxShadow: `0 0 8px ${preset.color}66`,
-              border: preset.color === '#ffffff' ? '1px solid rgba(255,255,255,0.2)' : 'none',
-            }} />
-            <span style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color: iconColor === preset.color ? preset.color : 'rgba(255,255,255,0.4)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}>
-              {preset.name}
-            </span>
+            <div style={{ width: 18, height: 18, borderRadius: '50%', background: preset.color, boxShadow: `0 0 8px ${preset.color}66`, border: preset.color === '#ffffff' ? '1px solid rgba(255,255,255,0.2)' : 'none' }} />
+            <span style={{ fontSize: 9, fontWeight: 700, color: iconColor === preset.color ? preset.color : 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{preset.name}</span>
           </button>
         ))}
       </div>
-
       <div className="s-card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 4 }}>
-        <div style={{
-          position: 'relative',
-          width: 40,
-          height: 40,
-          borderRadius: 10,
-          background: iconColor,
-          flexShrink: 0,
-          overflow: 'hidden',
-          boxShadow: `0 4px 12px ${iconColor}55`,
-          border: '1px solid rgba(255,255,255,0.1)',
-        }}>
-          <input
-            type="color"
-            value={iconColor}
-            onChange={e => store.setIconColor(e.target.value)}
-            style={{ position: 'absolute', inset: '-8px', width: 56, height: 56, cursor: 'pointer', border: 'none', background: 'none' }}
-          />
+        <div style={{ position: 'relative', width: 40, height: 40, borderRadius: 10, background: iconColor, flexShrink: 0, overflow: 'hidden', boxShadow: `0 4px 12px ${iconColor}55`, border: '1px solid rgba(255,255,255,0.1)' }}>
+          <input type="color" value={iconColor} onChange={e => store.setIconColor(e.target.value)}
+            style={{ position: 'absolute', inset: '-8px', width: 56, height: 56, cursor: 'pointer', border: 'none', background: 'none' }} />
         </div>
         <div style={{ flex: 1 }}>
           <div className="s-label">Custom Icon Color</div>
           <div style={{ fontSize: 11, color: iconColor === '#ffffff' ? 'rgba(255,255,255,0.5)' : iconColor, fontFamily: 'monospace', fontWeight: 700, marginTop: 2 }}>{iconColor}</div>
         </div>
-        <button
-          onClick={() => store.setIconColor('#ffffff')}
-          style={{
-            padding: '6px 12px',
-            borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.1)',
-            background: 'rgba(255,255,255,0.05)',
-            color: 'rgba(255,255,255,0.5)',
-            fontSize: 10,
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
+        <button onClick={() => store.setIconColor('#ffffff')}
+          style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-        >
-          Reset
-        </button>
+        >Reset</button>
       </div>
-
       <div className="s-card" style={{ marginBottom: 10 }}>
         <div className="s-row">
-          <div>
-            <div className="s-label">Adaptive Icon Tint</div>
-            <div className="s-sublabel">Match icon color to accent color</div>
-          </div>
-          <Toggle
-            active={iconColor === accentColor}
-            onToggle={() => store.setIconColor(iconColor === accentColor ? '#ffffff' : accentColor)}
-            accentColor={accentColor}
-          />
+          <div><div className="s-label">Adaptive Icon Tint</div><div className="s-sublabel">Match UI icons to accent color</div></div>
+          <Toggle active={iconColor === accentColor} onToggle={() => store.setIconColor(iconColor === accentColor ? '#ffffff' : accentColor)} accentColor={accentColor} />
         </div>
       </div>
 
       <p className="s-section-title">Taskbar</p>
       <div className="s-card">
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-          <span className="s-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <AppIcon src={icons.tabs} size={13} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} />
-            Position
-          </span>
+          <span className="s-label">Position</span>
           <div style={{ display: 'flex', gap: 6 }}>
             {TASKBAR_POSITIONS.map(p => (
               <button key={p.id} onClick={() => store.setDockPosition(p.id as DockPosition)}
@@ -1029,7 +1013,7 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
           <span className="s-label">Position</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 6 }}>
-            {NOTIFICATION_POSITIONS.map((p) => (
+            {NOTIFICATION_POSITIONS.map(p => (
               <button key={p.id} onClick={() => store.setNotificationPosition(p.id as NotificationPosition)}
                 className={`s-chip ${notificationPosition === p.id ? 's-chip-active' : 's-chip-inactive'}`}
                 style={{ border: 'none', fontSize: 10 }}>{p.name}</button>
@@ -1041,10 +1025,7 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
       <p className="s-section-title">App Launcher</p>
       <div className="s-card">
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-          <span className="s-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <AppIcon src={icons.appsB} size={13} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} />
-            Launcher Position
-          </span>
+          <span className="s-label">Launcher Position</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 6 }}>
             {(['bottom-left', 'bottom-right', 'center', 'top-left'] as LauncherPosition[]).map(pos => (
               <button key={pos} onClick={() => store.setLauncherPosition(pos)}
@@ -1058,7 +1039,7 @@ function DesktopTab({ iconSize, showDesktopGrid, taskbarPosition, taskbarHeight,
   );
 }
 
-function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, borderRadius, titlebarHeight, windowBorderGlow, windowAnimation, store, accentColor, icons }: SystemTabProps) {
+function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, borderRadius, titlebarHeight, windowBorderGlow, windowAnimation, store, accentColor }: SystemTabProps) {
   return (
     <>
       <p className="s-section-title">Typography</p>
@@ -1066,17 +1047,16 @@ function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, border
         {PREMIUM_FONTS.map(f => (
           <button key={f.value} onClick={() => store.setSystemFontFamily(f.value)}
             className={`font-card ${systemFontFamily === f.value ? 'font-card-active' : ''}`}
-            style={{ border: 'none', cursor: 'pointer', color: '#fff' }}
+            style={{ border: 'none', cursor: 'pointer', color: 'var(--text-primary)' }}
           >
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, fontFamily: f.value, color: systemFontFamily === f.value ? accentColor : 'rgba(255,255,255,0.85)' }}>{f.name}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, fontFamily: f.value, color: systemFontFamily === f.value ? accentColor : 'var(--text-primary)' }}>{f.name}</div>
               <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>System Font</div>
             </div>
             <span style={{ fontSize: 20, fontFamily: f.value, color: systemFontFamily === f.value ? accentColor : 'rgba(255,255,255,0.25)' }}>{f.preview}</span>
           </button>
         ))}
       </div>
-
       <p className="s-section-title">Font Size</p>
       <div className="s-card">
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
@@ -1084,29 +1064,26 @@ function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, border
           <input type="range" min={10} max={18} value={systemFontSize} onChange={e => store.setSystemFontSize(parseInt(e.target.value))} className="s-slider" />
         </div>
       </div>
-
       <p className="s-section-title">Text Transform</p>
       <div className="s-card" style={{ marginBottom: 10 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, padding: 12 }}>
-          {FONT_TRANSFORMS.map((transform) => (
+          {FONT_TRANSFORMS.map(transform => (
             <button key={transform.id} onClick={() => store.setFontTransformStyle(transform.id as FontTransformStyle)}
               className={`s-chip ${store.fontTransformStyle === transform.id ? 's-chip-active' : 's-chip-inactive'}`}
               style={{ border: 'none' }}>{transform.name}</button>
           ))}
         </div>
       </div>
-
       <p className="s-section-title">Theme Mode</p>
       <div className="s-card" style={{ marginBottom: 10 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, padding: 12 }}>
-          {THEME_MODE_OPTIONS.map((mode) => (
+          {THEME_MODE_OPTIONS.map(mode => (
             <button key={mode.id} onClick={() => store.setThemeMode(mode.id as ThemeMode)}
               className={`s-chip ${store.themeMode === mode.id ? 's-chip-active' : 's-chip-inactive'}`}
               style={{ border: 'none', fontSize: 10 }}>{mode.name}</button>
           ))}
         </div>
       </div>
-
       <p className="s-section-title">Glass & Blur</p>
       <div className="s-card">
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
@@ -1122,7 +1099,6 @@ function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, border
           <input type="range" min={0} max={32} value={borderRadius} onChange={e => store.setUiBorderRadius(parseInt(e.target.value))} className="s-slider" />
         </div>
       </div>
-
       <p className="s-section-title">Window Chrome</p>
       <div className="s-card">
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
@@ -1130,17 +1106,10 @@ function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, border
           <input type="range" min={28} max={56} value={titlebarHeight} onChange={e => store.setTitlebarHeight(parseInt(e.target.value))} className="s-slider" />
         </div>
         <div className="s-row">
-          <div>
-            <div className="s-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <AppIcon src={icons.newW} size={13} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} />
-              Active Window Glow
-            </div>
-            <div className="s-sublabel">Accent-colored border glow</div>
-          </div>
+          <div><div className="s-label">Active Window Glow</div><div className="s-sublabel">Accent-colored border glow</div></div>
           <Toggle active={windowBorderGlow} onToggle={() => store.setWindowBorderGlow(!windowBorderGlow)} accentColor={accentColor} />
         </div>
       </div>
-
       <p className="s-section-title">Animation Style</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 6 }}>
         {WINDOW_ANIMATIONS.map(a => (
@@ -1153,7 +1122,7 @@ function SystemTab({ systemFontFamily, systemFontSize, uiBlur, uiOpacity, border
   );
 }
 
-function AdvancedTab({ reducedMotion, particleEffects, cursorStyle, store, accentColor, icons }: AdvancedTabProps) {
+function AdvancedTab({ reducedMotion, particleEffects, cursorStyle, store, accentColor }: AdvancedTabProps) {
   return (
     <>
       <p className="s-section-title">Accessibility</p>
@@ -1161,32 +1130,24 @@ function AdvancedTab({ reducedMotion, particleEffects, cursorStyle, store, accen
         <div className="s-row">
           <div>
             <div className="s-label">Reduce Motion</div>
-            <div className="s-sublabel">Disable non-essential animations</div>
+            <div className="s-sublabel">Disables non-essential animations only — does not affect grid or snap</div>
           </div>
           <Toggle active={reducedMotion} onToggle={() => store.setReducedMotion(!reducedMotion)} accentColor={accentColor} />
         </div>
       </div>
-
       <p className="s-section-title">Visual FX</p>
       <div className="s-card">
         <div className="s-row">
-          <div>
-            <div className="s-label">Particle Effects</div>
-            <div className="s-sublabel">Ambient desktop particles</div>
-          </div>
+          <div><div className="s-label">Particle Effects</div><div className="s-sublabel">Ambient desktop particles</div></div>
           <Toggle active={particleEffects} onToggle={() => store.setParticleEffects(!particleEffects)} accentColor={accentColor} />
         </div>
       </div>
-
       <p className="s-section-title">Cursor</p>
       <div className="s-card">
         <div className="s-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-          <span className="s-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <AppIcon src={icons.cursorE} size={13} color="none" style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} />
-            Cursor Style
-          </span>
+          <span className="s-label">Cursor Style</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 6 }}>
-            {CURSOR_STYLES.map((c) => (
+            {CURSOR_STYLES.map(c => (
               <button key={c.id} onClick={() => store.setCursorStyle(c.id as CursorStyle)}
                 className={`s-chip ${cursorStyle === c.id ? 's-chip-active' : 's-chip-inactive'}`}
                 style={{ border: 'none', fontSize: 10 }}>{c.name}</button>
@@ -1194,7 +1155,6 @@ function AdvancedTab({ reducedMotion, particleEffects, cursorStyle, store, accen
           </div>
         </div>
       </div>
-
       <p className="s-section-title">System Info</p>
       <div className="s-card">
         {[

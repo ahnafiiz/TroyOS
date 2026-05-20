@@ -162,7 +162,7 @@ export default function Window({
   };
 
   return (
-    <div onClick={() => focusWindow(id)} style={getWindowStyles()}>
+    <div data-window onClick={() => focusWindow(id)} style={getWindowStyles()}>
       {/* Title bar */}
       <div
         onMouseDown={handleHeaderMouseDown}

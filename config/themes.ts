@@ -1,5 +1,5 @@
 // =====================================================
-// TROY OS — WALLPAPERS + ACCENT COLORS
+// TROY OS — WALLPAPERS + ACCENT COLORS - theme.css
 // =====================================================
 
 export interface Theme {

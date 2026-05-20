@@ -1,3 +1,4 @@
+// applauncher.tsx
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -39,33 +40,36 @@ export default function AppLauncher() {
   return (
     <>
       {/* Backdrop */}
-      <div
-        onClick={toggleLauncher}
-        style={{
-          position: 'absolute', inset: 0,
-          zIndex: 'calc(var(--z-launcher) - 1)',
-          background: 'rgba(0,0,0,0.18)',
-          backdropFilter: 'blur(4px)',
-          WebkitBackdropFilter: 'blur(4px)',
-        }}
-      />
+       <div
+         onClick={toggleLauncher}
+         data-context-ignore
+         onContextMenu={(e) => e.stopPropagation()}
+         style={{
+           position: 'absolute', inset: 0,
+           zIndex: 'calc(var(--z-launcher) - 1)',
+           background: 'rgba(0,0,0,0.18)',
+           backdropFilter: 'blur(4px)',
+           WebkitBackdropFilter: 'blur(4px)',
+         }}
+       />
 
       {/* Panel */}
-      <div
-        onClick={e => e.stopPropagation()}
-        className="launcher-panel launcher-reveal"
-        style={{
-          position: 'absolute',
-          ...pos,
-          zIndex: 'var(--z-launcher)',
-          borderRadius: 'var(--radius-xl)',
-          width: 580,
-          height: 440,
-          display: 'flex',
-          overflow: 'hidden',
-          background: `rgba(10,12,18,${launcherOpacity})`,
-        }}
-      >
+       <div
+         onClick={e => e.stopPropagation()}
+         data-context-ignore
+         className="launcher-panel launcher-reveal"
+         style={{
+           position: 'absolute',
+           ...pos,
+           zIndex: 'var(--z-launcher)',
+           borderRadius: 'var(--radius-xl)',
+           width: 580,
+           height: 440,
+           display: 'flex',
+           overflow: 'hidden',
+           background: `rgba(10,12,18,${launcherOpacity})`,
+         }}
+       >
         <style>{`
           .launcher-search-input::placeholder { color: var(--text-tertiary); }
           .launcher-app-card .icon-wrapper {

@@ -2,6 +2,7 @@
    TROY OS — GLOBAL DESIGN SYSTEM
    Theme tokens, utilities, and component primitives.
    All runtime values are driven by ThemeProvider.tsx via CSS custom properties.
+   theme.css
    ============================================================================= */
 
 /* ── Root Tokens (defaults — overwritten at runtime by ThemeProvider) ──────── */

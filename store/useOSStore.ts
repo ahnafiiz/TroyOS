@@ -2,8 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 /* TYPES (unchanged) */
-export const OS_VERSION = "3.5.7";
-export const OS_BUILD = "19-05-2026";
+export const OS_VERSION = "3.7.2";
+export const OS_BUILD = "20-05-2026";
 
 export interface WindowState {
   id: string;
@@ -581,7 +581,7 @@ export const useOSStore = create<OSState>()(
       setNotificationPosition: (position) =>
         set({ notificationPosition: position }),
 
-      showDesktopGrid: true,
+      showDesktopGrid: false,
       setShowDesktopGrid: (value) => set({ showDesktopGrid: value }),
 
       desktopGridOpacity: 0.12,
