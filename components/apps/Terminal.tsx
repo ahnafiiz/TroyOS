@@ -20,6 +20,8 @@ interface User {
   role?: 'user' | 'admin';
   isBanned?: boolean;
   isFrozen?: boolean;
+  banUntil?: string;
+  freezeUntil?: string;
   createdAt: string | number | Date;
   [key: string]: unknown;
 }
@@ -94,7 +96,21 @@ export default function Terminal() {
   const line = (text: string) => addTerminalLine('sys', text);
   const err  = (text: string) => addTerminalLine('error', text);
 
-  const runCommand = (raw: string) => {
+  const parseDuration = (str?: string): string => {
+    if (!str || str === 'permanent') return 'permanent';
+    const num = parseInt(str);
+    if (isNaN(num)) return 'permanent';
+    const unit = str.slice(-1);
+    const ms =
+      unit === 'm' ? num * 60 * 1000 :
+      unit === 'h' ? num * 60 * 60 * 1000 :
+      unit === 'd' ? num * 24 * 60 * 60 * 1000 :
+      null;
+    if (!ms) return 'permanent';
+    return new Date(Date.now() + ms).toISOString();
+  };
+
+  const runCommand = async (raw: string) => {
     const requireAdmin = () => {
       if (!isAdmin) { err('permission denied'); return false; }
       return true;
@@ -121,34 +137,36 @@ export default function Terminal() {
     switch (cmd) {
 
       case 'help':
-        line(`┌─ Commands ────────────────────────────────┐`);
-        line(`│  help            show this list           │`);
-        line(`│  user            show your account info   │`);
-        line(`│  whoami          print current user       │`);
-        line(`│  ls              list files               │`);
-        line(`│  cat [file]      print file contents      │`);
-        line(`│  echo [text]     print text               │`);
-        line(`│  pwd             working directory        │`);
-        line(`│  date            current date & time      │`);
-        line(`│  uptime          system uptime            │`);
-        line(`│  top / ps        running processes        │`);
-        line(`│  neofetch        system info              │`);
-        line(`│  ip / ifconfig   network info             │`);
-        line(`│  ping [host]     ping a host              │`);
-        line(`│  env             environment vars         │`);
-        line(`│  matrix          ???                      │`);
-        line(`│  clear           clear terminal           │`);
-        line(`└───────────────────────────────────────────┘`);
+        line(`┌─ Commands ────────────────────────────────────┐`);
+        line(`│  help              show this list             │`);
+        line(`│  user              show your account info     │`);
+        line(`│  whoami            print current user         │`);
+        line(`│  ls                list files                 │`);
+        line(`│  cat [file]        print file contents        │`);
+        line(`│  echo [text]       print text                 │`);
+        line(`│  pwd               working directory          │`);
+        line(`│  date              current date & time        │`);
+        line(`│  uptime            system uptime              │`);
+        line(`│  top / ps          running processes          │`);
+        line(`│  neofetch          system info                │`);
+        line(`│  ip / ifconfig     network info               │`);
+        line(`│  ping [host]       ping a host                │`);
+        line(`│  env               environment vars           │`);
+        line(`│  matrix            ???                        │`);
+        line(`│  clear             clear terminal             │`);
+        line(`└───────────────────────────────────────────────┘`);
         if (isAdmin) {
           line(``);
-          line(`┌─ Admin Commands ──────────────────────────┐`);
-          line(`│  ban <email>               ban a user     │`);
-          line(`│  unban <email>             unban a user   │`);
-          line(`│  freeze <email>            freeze a user  │`);
-          line(`│  unfreeze <email>          unfreeze user  │`);
-          line(`│  chpass <email> <pass>     change pass    │`);
-          line(`│  reset                     factory reset  │`);
-          line(`└───────────────────────────────────────────┘`);
+          line(`┌─ Admin Commands ──────────────────────────────┐`);
+          line(`│  ban <email> [duration]   ban a user          │`);
+          line(`│  unban <email>            unban a user        │`);
+          line(`│  freeze <email> [dur]     freeze a user       │`);
+          line(`│  unfreeze <email>         unfreeze a user     │`);
+          line(`│  chpass <email> <pass>    change password     │`);
+          line(`│  reset                    factory reset       │`);
+          line(`│                                               │`);
+          line(`│  durations: 30m · 2h · 7d · permanent        │`);
+          line(`└───────────────────────────────────────────────┘`);
         }
         break;
 
@@ -272,26 +290,29 @@ export default function Terminal() {
       case 'ban':
         if (requireAdmin()) {
           const email = args[0];
-          if (!email) {
-            err('usage: ban <email>');
-          } else {
-            const idx = users.findIndex((u: User) => u.email === email);
-            if (idx === -1) {
-              err(`user not found: ${email}`);
-            } else {
-              fetch('/api/users', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, updates: { isBanned: true } }),
-              }).catch(console.error);
-              const newUsers = [...users];
-              newUsers[idx] = { ...users[idx], isBanned: true };
-              setUsers(newUsers);
-              line(`banned: ${email}`);
-              if (user?.email === email) {
-                setTimeout(() => logout(), 800);
-              }
-            }
+          const duration = args[1];
+          if (!email) { err('usage: ban <email> [duration]'); break; }
+          const idx = users.findIndex((u: User) => u.email === email);
+          if (idx === -1) { err(`user not found: ${email}`); break; }
+
+          const banUntil = parseDuration(duration);
+          const label = banUntil === 'permanent'
+            ? 'permanently'
+            : `until ${new Date(banUntil).toLocaleString('en-IE', { timeZone: 'Europe/Dublin' })}`;
+
+          try {
+            await fetch('/api/users', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, updates: { isBanned: true, banUntil } }),
+            });
+            const newUsers = [...users];
+            newUsers[idx] = { ...users[idx], isBanned: true, banUntil };
+            setUsers(newUsers);
+            line(`banned: ${email} ${label}`);
+            if (user?.email === email) setTimeout(() => logout(), 800);
+          } catch {
+            err(`failed to ban: ${email}`);
           }
         }
         break;
@@ -299,23 +320,21 @@ export default function Terminal() {
       case 'unban':
         if (requireAdmin()) {
           const email = args[0];
-          if (!email) {
-            err('usage: unban <email>');
-          } else {
-            const idx = users.findIndex((u: User) => u.email === email);
-            if (idx === -1) {
-              err(`user not found: ${email}`);
-            } else {
-              fetch('/api/users', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, updates: { isBanned: false } }),
-              }).catch(console.error);
-              const newUsers = [...users];
-              newUsers[idx] = { ...users[idx], isBanned: false };
-              setUsers(newUsers);
-              line(`unbanned: ${email}`);
-            }
+          if (!email) { err('usage: unban <email>'); break; }
+          const idx = users.findIndex((u: User) => u.email === email);
+          if (idx === -1) { err(`user not found: ${email}`); break; }
+          try {
+            await fetch('/api/users', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, updates: { isBanned: false, banUntil: '' } }),
+            });
+            const newUsers = [...users];
+            newUsers[idx] = { ...users[idx], isBanned: false, banUntil: '' };
+            setUsers(newUsers);
+            line(`unbanned: ${email}`);
+          } catch {
+            err(`failed to unban: ${email}`);
           }
         }
         break;
@@ -323,26 +342,29 @@ export default function Terminal() {
       case 'freeze':
         if (requireAdmin()) {
           const email = args[0];
-          if (!email) {
-            err('usage: freeze <email>');
-          } else {
-            const idx = users.findIndex((u: User) => u.email === email);
-            if (idx === -1) {
-              err(`user not found: ${email}`);
-            } else {
-              fetch('/api/users', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, updates: { isFrozen: true } }),
-              }).catch(console.error);
-              const newUsers = [...users];
-              newUsers[idx] = { ...users[idx], isFrozen: true };
-              setUsers(newUsers);
-              line(`frozen: ${email}`);
-              if (user?.email === email) {
-                setTimeout(() => logout(), 800);
-              }
-            }
+          const duration = args[1];
+          if (!email) { err('usage: freeze <email> [duration]'); break; }
+          const idx = users.findIndex((u: User) => u.email === email);
+          if (idx === -1) { err(`user not found: ${email}`); break; }
+
+          const freezeUntil = parseDuration(duration);
+          const label = freezeUntil === 'permanent'
+            ? 'permanently'
+            : `until ${new Date(freezeUntil).toLocaleString('en-IE', { timeZone: 'Europe/Dublin' })}`;
+
+          try {
+            await fetch('/api/users', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, updates: { isFrozen: true, freezeUntil } }),
+            });
+            const newUsers = [...users];
+            newUsers[idx] = { ...users[idx], isFrozen: true, freezeUntil };
+            setUsers(newUsers);
+            line(`frozen: ${email} ${label}`);
+            if (user?.email === email) setTimeout(() => logout(), 800);
+          } catch {
+            err(`failed to freeze: ${email}`);
           }
         }
         break;
@@ -350,23 +372,21 @@ export default function Terminal() {
       case 'unfreeze':
         if (requireAdmin()) {
           const email = args[0];
-          if (!email) {
-            err('usage: unfreeze <email>');
-          } else {
-            const idx = users.findIndex((u: User) => u.email === email);
-            if (idx === -1) {
-              err(`user not found: ${email}`);
-            } else {
-              fetch('/api/users', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, updates: { isFrozen: false } }),
-              }).catch(console.error);
-              const newUsers = [...users];
-              newUsers[idx] = { ...users[idx], isFrozen: false };
-              setUsers(newUsers);
-              line(`unfrozen: ${email}`);
-            }
+          if (!email) { err('usage: unfreeze <email>'); break; }
+          const idx = users.findIndex((u: User) => u.email === email);
+          if (idx === -1) { err(`user not found: ${email}`); break; }
+          try {
+            await fetch('/api/users', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, updates: { isFrozen: false, freezeUntil: '' } }),
+            });
+            const newUsers = [...users];
+            newUsers[idx] = { ...users[idx], isFrozen: false, freezeUntil: '' };
+            setUsers(newUsers);
+            line(`unfrozen: ${email}`);
+          } catch {
+            err(`failed to unfreeze: ${email}`);
           }
         }
         break;
@@ -374,23 +394,21 @@ export default function Terminal() {
       case 'chpass':
         if (requireAdmin()) {
           const [email, newPass] = args;
-          if (!email || !newPass) {
-            err('usage: chpass <email> <new_password>');
-          } else {
-            const idx = users.findIndex((u: User) => u.email === email);
-            if (idx === -1) {
-              err(`user not found: ${email}`);
-            } else {
-              fetch('/api/users', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, updates: { password: newPass } }),
-              }).catch(console.error);
-              const newUsers = [...users];
-              newUsers[idx] = { ...users[idx], password: newPass };
-              setUsers(newUsers);
-              line(`password updated: ${email}`);
-            }
+          if (!email || !newPass) { err('usage: chpass <email> <new_password>'); break; }
+          const idx = users.findIndex((u: User) => u.email === email);
+          if (idx === -1) { err(`user not found: ${email}`); break; }
+          try {
+            await fetch('/api/users', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, updates: { password: newPass } }),
+            });
+            const newUsers = [...users];
+            newUsers[idx] = { ...users[idx], password: newPass };
+            setUsers(newUsers);
+            line(`password updated: ${email}`);
+          } catch {
+            err(`failed to update password: ${email}`);
           }
         }
         break;

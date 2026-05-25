@@ -4,6 +4,8 @@ export interface User {
   role?: 'user' | 'admin';
   isBanned?: boolean;
   isFrozen?: boolean;
+  banUntil?: string;
+  freezeUntil?: string;
   username: string;
   email: string;
   password?: string;
@@ -15,38 +17,43 @@ let sheets: sheets_v4.Sheets | null = null;
 
 async function getSheetsClient() {
   if (sheets) return sheets;
-
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON!);
-
   const auth = new google.auth.GoogleAuth({
     credentials,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
-
   sheets = google.sheets({ version: "v4", auth });
   return sheets;
 }
 
+const parseBool = (val: unknown) => {
+  const s = String(val || '').toLowerCase().trim();
+  return s === 'yes' || s === 'true' || s === '1';
+};
+
 // Sheet column layout:
-// A=username, B=email, C=password, D=createdAt, E=role, F=isBanned, G=isFrozen, H=lastLogin
+// A=username, B=email, C=password, D=createdAt, E=role,
+// F=isBanned, G=isFrozen, H=lastLogin, I=banUntil, J=freezeUntil
 
 export async function fetchAllUsers(): Promise<User[]> {
   const client = await getSheetsClient();
   const res = await client.spreadsheets.values.get({
     spreadsheetId: process.env.USER_SHEET_ID!,
-    range: "Users!A:H",
+    range: "Users!A:J",
   });
   const rows = res.data.values ?? [];
-  const start = rows[0]?.[0] === "username" ? 1 : 0;
+  const start = rows[0]?.[0]?.toLowerCase() === "username" ? 1 : 0;
   return rows.slice(start).map((r) => ({
-    username:  String(r[0] || ""),
-    email:     String(r[1] || ""),
-    password:  r[2] ? String(r[2]) : undefined,
-    createdAt: String(r[3] || ""),
-    role:      (String(r[4] || "user") as 'user' | 'admin'),
-    isBanned:  String(r[5] || "no").toLowerCase() === "yes",
-    isFrozen:  String(r[6] || "no").toLowerCase() === "yes",
-    lastLogin: r[7] ? String(r[7]) : undefined,
+    username:    String(r[0] || ""),
+    email:       String(r[1] || ""),
+    password:    r[2] ? String(r[2]) : undefined,
+    createdAt:   String(r[3] || ""),
+    role:        (String(r[4] || "user") as 'user' | 'admin'),
+    isBanned:    parseBool(r[5]),
+    isFrozen:    parseBool(r[6]),
+    lastLogin:   r[7] ? String(r[7]) : undefined,
+    banUntil:    r[8] ? String(r[8]) : undefined,
+    freezeUntil: r[9] ? String(r[9]) : undefined,
   }));
 }
 
@@ -55,23 +62,25 @@ export async function findUser(identifier: string): Promise<User | undefined> {
   const client = await getSheetsClient();
   const response = await client.spreadsheets.values.get({
     spreadsheetId: process.env.USER_SHEET_ID!,
-    range: "Users!A:H",
+    range: "Users!A:J",
   });
   const rows = response.data.values ?? [];
-  const startIdx = rows[0]?.[0] === "username" ? 1 : 0;
+  const startIdx = rows[0]?.[0]?.toLowerCase() === "username" ? 1 : 0;
   for (let i = startIdx; i < rows.length; i++) {
-    const [username, email, password, createdAt, role, isBanned, isFrozen, lastLogin] = rows[i];
+    const [username, email, password, createdAt, role, isBanned, isFrozen, lastLogin, banUntil, freezeUntil] = rows[i];
     if (!username) continue;
     if (username.toLowerCase() === lowered || (email && email.toLowerCase() === lowered)) {
       return {
-        username:  String(username),
-        email:     String(email),
-        password:  password ? String(password) : undefined,
-        createdAt: String(createdAt),
-        role:      (String(role || "user") as 'user' | 'admin'),
-        isBanned:  String(isBanned || "no").toLowerCase() === "yes",
-        isFrozen:  String(isFrozen || "no").toLowerCase() === "yes",
-        lastLogin: lastLogin ? String(lastLogin) : undefined,
+        username:    String(username),
+        email:       String(email),
+        password:    password ? String(password) : undefined,
+        createdAt:   String(createdAt),
+        role:        (String(role || "user") as 'user' | 'admin'),
+        isBanned:    parseBool(isBanned),
+        isFrozen:    parseBool(isFrozen),
+        lastLogin:   lastLogin ? String(lastLogin) : undefined,
+        banUntil:    banUntil ? String(banUntil) : undefined,
+        freezeUntil: freezeUntil ? String(freezeUntil) : undefined,
       };
     }
   }
@@ -82,7 +91,7 @@ export async function addUser(user: User): Promise<User> {
   const client = await getSheetsClient();
   await client.spreadsheets.values.append({
     spreadsheetId: process.env.USER_SHEET_ID!,
-    range: "Users!A:H",
+    range: "Users!A:J",
     valueInputOption: "RAW",
     requestBody: {
       values: [[
@@ -94,6 +103,8 @@ export async function addUser(user: User): Promise<User> {
         user.isBanned ? 'yes' : 'no',
         user.isFrozen ? 'yes' : 'no',
         '',
+        user.banUntil ?? '',
+        user.freezeUntil ?? '',
       ]],
     },
   });
@@ -104,24 +115,34 @@ export async function updateUser(email: string, updates: Partial<User>): Promise
   const client = await getSheetsClient();
   const resp = await client.spreadsheets.values.get({
     spreadsheetId: process.env.USER_SHEET_ID!,
-    range: "Users!A:H",
+    range: "Users!A:J",
   });
   const rows = resp.data.values ?? [];
-  const startIdx = rows[0]?.[0] === "username" ? 1 : 0;
-  const colMap = { username: 0, email: 1, password: 2, createdAt: 3, role: 4, isBanned: 5, isFrozen: 6, lastLogin: 7 };
+  const startIdx = rows[0]?.[0]?.toLowerCase() === "username" ? 1 : 0;
+  const colMap = {
+    username: 0, email: 1, password: 2, createdAt: 3,
+    role: 4, isBanned: 5, isFrozen: 6, lastLogin: 7,
+    banUntil: 8, freezeUntil: 9,
+  };
 
   for (let i = startIdx; i < rows.length; i++) {
     if (rows[i][1]?.toString().toLowerCase() === email.toLowerCase()) {
       const rowNumber = i + 1;
       const row = [...rows[i]];
-      if (updates.password  !== undefined) row[colMap.password]  = updates.password;
-      if (updates.role      !== undefined) row[colMap.role]      = updates.role;
-      if (updates.isBanned  !== undefined) row[colMap.isBanned]  = updates.isBanned  ? 'yes' : 'no';
-      if (updates.isFrozen  !== undefined) row[colMap.isFrozen]  = updates.isFrozen  ? 'yes' : 'no';
-      if (updates.lastLogin !== undefined) row[colMap.lastLogin] = updates.lastLogin;
+      // Pad row to 10 columns if shorter
+      while (row.length < 10) row.push('');
+
+      if (updates.password    !== undefined) row[colMap.password]    = updates.password;
+      if (updates.role        !== undefined) row[colMap.role]        = updates.role;
+      if (updates.isBanned    !== undefined) row[colMap.isBanned]    = updates.isBanned    ? 'yes' : 'no';
+      if (updates.isFrozen    !== undefined) row[colMap.isFrozen]    = updates.isFrozen    ? 'yes' : 'no';
+      if (updates.lastLogin   !== undefined) row[colMap.lastLogin]   = updates.lastLogin;
+      if (updates.banUntil    !== undefined) row[colMap.banUntil]    = updates.banUntil;
+      if (updates.freezeUntil !== undefined) row[colMap.freezeUntil] = updates.freezeUntil;
+
       await client.spreadsheets.values.update({
         spreadsheetId: process.env.USER_SHEET_ID!,
-        range: `Users!A${rowNumber}:H${rowNumber}`,
+        range: `Users!A${rowNumber}:J${rowNumber}`,
         valueInputOption: "RAW",
         requestBody: { values: [row] },
       });
@@ -133,25 +154,20 @@ export async function updateUser(email: string, updates: Partial<User>): Promise
 
 export async function updateLastLogin(email: string): Promise<void> {
   const client = await getSheetsClient();
-
   const response = await client.spreadsheets.values.get({
     spreadsheetId: process.env.USER_SHEET_ID!,
     range: 'Users!B:B',
   });
-
   const rows = response.data.values || [];
   const startIdx = rows[0]?.[0]?.toLowerCase() === 'email' ? 1 : 0;
   const rowIndex = rows.findIndex(
     (row, i) => i >= startIdx && row[0]?.toLowerCase() === email.toLowerCase()
   );
-
   if (rowIndex === -1) throw new Error(`User not found: ${email}`);
-
   const actualRow = rowIndex + 1;
   const timestamp = new Date()
     .toLocaleString('sv-SE', { timeZone: 'Europe/Dublin' })
     .substring(0, 16);
-
   await client.spreadsheets.values.update({
     spreadsheetId: process.env.USER_SHEET_ID!,
     range: `Users!H${actualRow}`,
@@ -163,12 +179,10 @@ export async function updateLastLogin(email: string): Promise<void> {
 export async function autoFormatPastLogins(): Promise<void> {
   const client = await getSheetsClient();
   const spreadsheetId = process.env.USER_SHEET_ID!;
-
   const response = await client.spreadsheets.values.get({
     spreadsheetId,
-    range: 'Users!A:H',
+    range: 'Users!A:J',
   });
-
   const rows = response.data.values || [];
   if (rows.length <= 1) return;
 
@@ -183,26 +197,18 @@ export async function autoFormatPastLogins(): Promise<void> {
   };
 
   for (let i = 1; i < rows.length; i++) {
-    const createdAtIdx = 3; // D
-    const lastLoginIdx = 7; // H
-
+    const createdAtIdx = 3;
+    const lastLoginIdx = 7;
     const cleanCreated = cleanTimestamp(rows[i][createdAtIdx]);
     const cleanLogin   = cleanTimestamp(rows[i][lastLoginIdx]);
-
-    if (rows[i][createdAtIdx] !== cleanCreated) {
-      updatedRows[i][createdAtIdx] = cleanCreated;
-      hasChanges = true;
-    }
-    if (rows[i][lastLoginIdx] !== cleanLogin) {
-      updatedRows[i][lastLoginIdx] = cleanLogin;
-      hasChanges = true;
-    }
+    if (rows[i][createdAtIdx] !== cleanCreated) { updatedRows[i][createdAtIdx] = cleanCreated; hasChanges = true; }
+    if (rows[i][lastLoginIdx] !== cleanLogin)   { updatedRows[i][lastLoginIdx] = cleanLogin;   hasChanges = true; }
   }
 
   if (hasChanges) {
     await client.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Users!A:H',
+      range: 'Users!A:J',
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: updatedRows },
     });

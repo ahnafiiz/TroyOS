@@ -1,45 +1,34 @@
-import { NextResponse } from 'next/server';
-import { findUser, updateLastLogin } from '../../../../services/sheetService';
+import { NextRequest, NextResponse } from 'next/server';
+import { fetchAllUsers, updateUser, updateLastLogin } from '@/services/sheetService';
 
-export async function POST(request: Request) {
+export async function GET() {
   try {
-    const body = await request.json();
-    const { identifier, password } = body;
+    const users = await fetchAllUsers();
+    return NextResponse.json(users);
+  } catch (err) {
+    console.error("Failed to fetch users:", err);
+    return NextResponse.json([], { status: 500 });
+  }
+}
 
-    if (!identifier || !password) {
-      return NextResponse.json({ error: 'Missing credentials' }, { status: 400 });
-    }
+export async function PATCH(req: NextRequest) {
+  try {
+    const { email, updates } = await req.json();
+    await updateUser(email, updates);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("Failed to update user:", err);
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
+}
 
-    const user = await findUser(identifier);
-
-    if (!user || (user.password?.trim() !== password?.trim())) {
-      return NextResponse.json({ error: 'Incorrect password' }, { status: 401 });
-    }
-
-    if (user.isBanned) {
-      return NextResponse.json({ error: 'This account has been banned.' }, { status: 403 });
-    }
-
-    if (user.isFrozen) {
-      return NextResponse.json({ error: 'This account is frozen.' }, { status: 403 });
-    }
-
-    await updateLastLogin(user.email);
-
-    return NextResponse.json({
-      success: true,
-      user: {
-        username:  user.username,
-        email:     user.email,
-        password:  user.password,
-        role:      user.role      ?? 'user',
-        isBanned:  user.isBanned  ?? false,
-        isFrozen:  user.isFrozen  ?? false,
-        createdAt: user.createdAt,
-      }
-    });
-  } catch (error) {
-    console.error("LOGIN_ERROR:", error);
-    return NextResponse.json({ error: 'Login authentication failed' }, { status: 500 });
+export async function PUT(req: NextRequest) {
+  try {
+    const { email } = await req.json();
+    await updateLastLogin(email);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("Failed to update last login:", err);
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
