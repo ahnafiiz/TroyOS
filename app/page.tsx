@@ -20,16 +20,38 @@ export default function Home() {
   const user            = useOSStore((s) => s.user);
   const isLoggedIn      = useOSStore((s) => s.isLoggedIn);
   const setBootComplete = useOSStore((s) => s.setBootComplete);
+  const logout          = useOSStore((s) => s.logout);
 
-useEffect(() => {
-  const id = setTimeout(() => setReady(true), 0);
-  return () => clearTimeout(id);
-}, []);
+  useEffect(() => {
+    const id = setTimeout(() => setReady(true), 0);
+    return () => clearTimeout(id);
+  }, []);
 
-useEffect(() => {
-  useOSStore.getState().loadUsers();
-}, []);
+  useEffect(() => {
+    useOSStore.getState().loadUsers();
+  }, []);
 
+  useEffect(() => {
+    if (!isLoggedIn || !user?.email) return;
+
+    const check = async () => {
+      try {
+        const res = await fetch('/api/users');
+        if (!res.ok) return;
+        const users = await res.json();
+        const fresh = users.find((u: { email: string }) => u.email === user.email);
+        if (fresh?.isBanned || fresh?.isFrozen) {
+          logout();
+        }
+      } catch (err) {
+        console.error('status check failed:', err);
+      }
+    };
+
+    check();
+    const id = setInterval(check, 15000);
+    return () => clearInterval(id);
+  }, [isLoggedIn, user?.email, logout]);
 
   const deriveScreen = useCallback((): Screen => {
     if (!bootComplete) return 'boot';

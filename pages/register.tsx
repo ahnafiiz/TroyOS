@@ -137,33 +137,36 @@ export const RegisterPage = () => {
     }
   };
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    setIsLoading(true);
-    setError(null);
-    try {
-      const identifier = loginIdentifier?.trim() || 'ahnafii';
-      const password = loginPasswordRef.current?.value?.trim() || loginPassword?.trim() || '';
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password }),
-      });
-      const result = await response.json();
-      if (response.ok && result.success) {
-        setUser(result.user);
-        setIsLoggedIn(true);
-        setIsFirstBoot(false);
-      } else {
-        setError(result.error || 'Invalid credentials.');
-      }
-    } catch (err) {
-      console.error(err);
-      setError('Server connection error during login.');
-    } finally {
-      setIsLoading(false);
+ const handleLoginSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setIsLoading(true);
+  setError(null);
+  try {
+    const identifier = loginIdentifier?.trim();
+    const pwd = loginPasswordRef.current?.value?.trim() || loginPassword?.trim() || '';
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password: pwd }),
+    });
+    const result = await response.json();
+    if (response.ok && result.success) {
+      setUser(result.user);
+      setIsLoggedIn(true);
+      setIsFirstBoot(false);
+    } else if (response.status === 403) {
+      setError(result.error); // shows "This account has been banned." or "This account is frozen."
+    } else {
+      setError(result.error || 'Invalid credentials.');
     }
-  };
+  } catch (err) {
+    console.error(err);
+    setError('Server connection error during login.');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleResend = async () => {
     if (cooldown > 0) return;
