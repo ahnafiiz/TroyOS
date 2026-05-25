@@ -1,6 +1,6 @@
 {
-  "name": "nexus-os",
-  "version": "0.1.0",
+  "name": "troy-os",
+  "version": "4.7.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,23 +9,31 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@getbrevo/brevo": "^5.0.4",
     "@google/genai": "^2.0.1",
-    "framer-motion": "^12.38.0",
+    "framer-motion": "^12.40.0",
+    "googleapis": "^172.0.0",
+    "headroom-ai": "^0.1.0",
     "lucide-react": "^1.14.0",
     "next": "^16.2.6",
+    "nodemailer": "^8.0.7",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "resend": "^6.12.3",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@svgr/webpack": "^8.1.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/webpack": "^5.28.5",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "webpack": "^5.94.0"
   }
 }

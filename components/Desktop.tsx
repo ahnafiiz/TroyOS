@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
@@ -34,7 +35,7 @@ const GRID_STEP = 100;
  * ICON_IMAGE_RATIO: fraction of the cell width the visible icon image fills.
  * Keep ≤ 0.60 so there is breathing room and space for the label underneath.
  */
-const ICON_IMAGE_RATIO = 0.44;
+const ICON_IMAGE_RATIO = 0.45;
 const DEFAULT_ICON_CELL = 64;
 
 const snapToGrid = (val: number) => Math.round(val / GRID_STEP) * GRID_STEP;
@@ -257,7 +258,8 @@ function DraggableIcon({
   const displayY   = isDragging ? initialY + dragDelta.dy : initialY;
 
 const iconScale = Math.max(0.4, Math.min(1.2, cellSize / 64));
-const clampedImage = Math.round(cellSize * ICON_IMAGE_RATIO * iconScale);const labelFontSize = showLabel
+const clampedImage = Math.round(cellSize * 0.62 * iconScale);
+const labelFontSize = showLabel
 
   ? Math.max(8, Math.min(14, labelSize * iconScale))
   : 0;
@@ -349,33 +351,49 @@ style={{
   zIndex: isDragging ? 9999 : 1,
   userSelect: 'none',
 }}    >
-      {/* Icon image bubble */}
-      <div
-        className="desktop-icon-inner"
-        style={{
-          width: clampedImage, 
-          height: clampedImage,
-          margin: '0 auto',
-          borderRadius: 'calc(var(--border-radius,12px) * 0.75)',
-          background: `linear-gradient(135deg, ${appColor}18, ${appColor}08)`,
-          border: `1px solid ${appColor}22`,
-          boxShadow: `0 4px 10px rgba(0,0,0,0.15), 0 0 0 0 ${appColor}00`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, overflow: 'hidden', position: 'relative',
-          transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s',
-        }}
-      >
+<div
+  className="desktop-icon-inner"
+  style={{
+    width: clampedImage,
+    height: clampedImage,
+
+    margin: '0 auto',
+
+    borderRadius: 16,
+
+    background: 'rgba(255,255,255,0.04)',
+
+    border: '1px solid rgba(255,255,255,0.08)',
+
+    backdropFilter: 'blur(10px)',
+
+    boxShadow: `
+      0 6px 18px rgba(0,0,0,0.35),
+      inset 0 1px 0 rgba(255,255,255,0.06)
+    `,
+
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    overflow: 'visible',
+    position: 'relative',
+
+    transition:
+      'background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease',
+  }}
+>
         {/*
          * Pass the per-app colour directly.
          * AppIcon's CSS filter pipeline tints the white SVG to this hue.
          */}
-        <AppIcon
-          src={iconSrc}
-          size={Math.round(clampedImage * 0.72)}
-          color={iconColor}
-          style={{ borderRadius: 'inherit' }}
-        />
-      </div>
+      <AppIcon
+        src={iconSrc}
+        size={Math.round(clampedImage * 0.68)}
+        color={iconColor}
+        style={{ borderRadius: 0 }}
+        />   
+   </div>
 
       {/* Label */}
       {showLabel && (
@@ -417,6 +435,10 @@ export default function Desktop() {
   const removeNotification = store.removeNotification;
   const setIconPosition    = store.setIconPosition;
 
+const isDarkMode = useOSStore((s) => s.isDarkMode);
+const hasHydrated = useOSStore((s) => s.hasHydrated);
+
+
   const wallpaper = WALLPAPERS[wallpaperIndex];
   const [desktopRefresh, setDesktopRefresh] = useState(0);
   const clockPosition    = useMemo(() => store.clockPosition || { x: 900, y: 100 }, [store.clockPosition]);
@@ -431,18 +453,30 @@ export default function Desktop() {
     x: 0, y: 0, visible: false,
   });
 
-  const desktopRef = useRef<HTMLDivElement>(null);
-  const [desktopSize, setDesktopSize] = useState({ w: 1280, h: 800 });
-  useEffect(() => {
-    const update = () => {
-      if (desktopRef.current) {
-        setDesktopSize({ w: desktopRef.current.offsetWidth, h: desktopRef.current.offsetHeight });
-      }
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
+const desktopRef = useRef<HTMLDivElement>(null);
+const [desktopSize, setDesktopSize] = useState({ w: 1280, h: 800 });
+
+useEffect(() => {
+  if (!hasHydrated) return;
+
+  const update = () => {
+    if (desktopRef.current) {
+      setDesktopSize({
+        w: desktopRef.current.offsetWidth,
+        h: desktopRef.current.offsetHeight,
+      });
+    }
+  };
+
+  update();
+
+  window.addEventListener('resize', update);
+
+  return () => {
+    window.removeEventListener('resize', update);
+  };
+}, [hasHydrated]);
+  
 
   const systemFontFamily = store.systemFontFamily || 'var(--font-geist-sans), sans-serif';
   const systemFontSize   = store.systemFontSize   || 13;
@@ -525,9 +559,24 @@ export default function Desktop() {
     root.style.setProperty('--taskbar-opacity',   String(taskbarOpacity));
     root.style.setProperty('--launcher-opacity',  String(launcherOpacity));
     root.style.setProperty('--glass-border',      'rgba(255,255,255,0.08)');
-    root.style.setProperty('--text-primary',      'var(--text-primary, #ffffff)');
-    root.style.setProperty('--text-secondary',    'var(--text-secondary, rgba(255,255,255,0.65))');
-    root.style.setProperty('--text-tertiary',     'var(--text-tertiary, rgba(255,255,255,0.35))');
+root.style.setProperty(
+  '--text-primary',
+  isDarkMode ? '#ffffff' : '#111111'
+);
+
+root.style.setProperty(
+  '--text-secondary',
+  isDarkMode
+    ? 'rgba(255,255,255,0.65)'
+    : 'rgba(0,0,0,0.65)'
+);
+
+root.style.setProperty(
+  '--text-tertiary',
+  isDarkMode
+    ? 'rgba(255,255,255,0.35)'
+    : 'rgba(0,0,0,0.35)'
+);
     root.style.setProperty('--border-subtle',     'rgba(255,255,255,0.05)');
     root.style.setProperty('--border-default',    'rgba(255,255,255,0.10)');
 
@@ -541,12 +590,21 @@ export default function Desktop() {
     root.style.setProperty('--dur-fast',   store.reducedMotion ? '0ms' : '100ms');
     root.style.setProperty('--dur-normal', store.reducedMotion ? '0ms' : '200ms');
     root.style.setProperty('--dur-slow',   store.reducedMotion ? '0ms' : '400ms');
-  }, [
-    uiBlur, uiOpacity, uiBorderRadius, systemFontFamily, systemFontSize,
-    accentColor, taskbarHeight, taskbarOpacity, launcherOpacity,
-    store.cursorStyle, store.reducedMotion,
-  ]);
-
+}, [
+  hasHydrated,
+  uiBlur,
+  uiOpacity,
+  uiBorderRadius,
+  systemFontFamily,
+  systemFontSize,
+  accentColor,
+  taskbarHeight,
+  taskbarOpacity,
+  launcherOpacity,
+  store.cursorStyle,
+  store.reducedMotion,
+  isDarkMode,
+]);
   // ── Wallpaper background styles ─────────────────────────────────────────────
   // Fix: properly handle all wallpaperStyle modes — cover, fit/contain, fill/stretch, center, tile
   const parsedWallpaperStyle = useMemo((): React.CSSProperties => {
@@ -613,7 +671,7 @@ export default function Desktop() {
   }), [store.clockSettings, accentColor, systemFontFamily]);
 
 const DESKTOP_ICON_SLOT = 100;
-const DESKTOP_ICON_VISUAL = 72;
+const DESKTOP_ICON_VISUAL = 90;
 
 const getCleanGridPos = useCallback((index: number) => {
   const margin = 20;
@@ -654,26 +712,66 @@ const getCleanGridPos = useCallback((index: number) => {
     return occupied;
   }, [iconPositions, clockPosition, clockSettings, getCleanGridPos, currentIconSize]);
 
-  const clampDesktopPosition = useCallback((x: number, y: number, w: number, h: number) => ({
-    x: Math.max(0, Math.min(x, desktopSize.w - w)),
-    y: Math.max(0, Math.min(y, desktopSize.h - taskbarClearance - h)),
-  }), [desktopSize, taskbarClearance]);
 
+const clampDesktopPosition = useCallback((
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) => ({
+  x: Math.max(0, Math.min(x, desktopSize.w - w)),
+  y: Math.max(0, Math.min(y, desktopSize.h - taskbarClearance - h)),
+}), [desktopSize, taskbarClearance]);
   const handleIconDragEnd = useCallback((appId: string, rawX: number, rawY: number) => {
-    if (!snapToGridEnabled) {
-      setIconPosition(appId, clampDesktopPosition(rawX, rawY, currentIconSize, currentIconSize));
-      return;
-    }
-    const occupied = getAllOccupiedSpaces().filter(occ => {
-      const saved = iconPositions[appId];
-      if (!saved) return true;
-      return !(snapToGrid(saved.x) === occ.x && snapToGrid(saved.y) === occ.y && occ.w === currentIconSize);
-    });
-    const free = findFreeGridCell(rawX, rawY, GRID_STEP, occupied, currentIconSize, currentIconSize, desktopSize.w, desktopSize.h, taskbarClearance);
-    setIconPosition(appId, free);
-  }, [iconPositions, getAllOccupiedSpaces, desktopSize, taskbarClearance, setIconPosition, currentIconSize, snapToGridEnabled, clampDesktopPosition]);
+  if (!snapToGridEnabled) {
+    setIconPosition(
+      appId,
+      clampDesktopPosition(rawX, rawY, currentIconSize, currentIconSize)
+    );
+    return;
+  }
 
-  const handleClockDragEnd = useCallback((rawX: number, rawY: number) => {
+  const occupied = getAllOccupiedSpaces().filter(occ => {
+    const saved = iconPositions[appId];
+
+    if (!saved) return true;
+
+    return !(
+      snapToGrid(saved.x) === occ.x &&
+      snapToGrid(saved.y) === occ.y &&
+      occ.w === currentIconSize
+    );
+  });
+
+  const free = findFreeGridCell(
+    rawX,
+    rawY,
+    GRID_STEP,
+    occupied,
+    currentIconSize,
+    currentIconSize,
+    desktopSize.w,
+    desktopSize.h,
+    taskbarClearance
+  );
+
+  setIconPosition(appId, {
+    x: snapToGrid(free.x),
+    y: snapToGrid(free.y),
+  });
+
+}, [
+  iconPositions,
+  getAllOccupiedSpaces,
+  desktopSize,
+  taskbarClearance,
+  setIconPosition,
+  currentIconSize,
+  snapToGridEnabled,
+  clampDesktopPosition,
+  //getCleanGridPos,
+]);
+    const handleClockDragEnd = useCallback((rawX: number, rawY: number) => {
     const clockW = getClockWidth(clockSettings.fontSize ?? 52, clockSettings.use24Hour, clockSettings.showSeconds);
     const clockH = getClockHeight(clockSettings.fontSize ?? 52, clockSettings.showDate);
     if (!snapToGridEnabled) {
@@ -703,12 +801,10 @@ const getCleanGridPos = useCallback((index: number) => {
     // Extra guard: if the event somehow reached here via a non-desktop target,
     // check that it landed on the desktop root or the wallpaper layer.
     const target = e.target as HTMLElement;
-    const isDesktopBg = (
-      target === desktopRef.current ||
-      target.id === 'troy-desktop-bg' ||
-      target.closest('[data-desktop-bg]') !== null
-    );
-    if (!isDesktopBg) return;
+const isDesktopBg =
+  target === desktopRef.current ||
+  target.id === 'troy-desktop-bg';    
+  if (!isDesktopBg) return;
     setContextMenu({ x: e.clientX, y: e.clientY, visible: true });
   };
 
@@ -721,18 +817,34 @@ const getCleanGridPos = useCallback((index: number) => {
     return () => window.removeEventListener('click', close);
   }, []);
 
-  // Grid overlay color with user-controlled opacity
-  const gridLineColor = useMemo(() => {
-    // desktopGridColor is a hex like '#ffffff'. Blend it with desktopGridOpacity.
-    const hex = desktopGridColor.replace('#', '');
-    const r   = parseInt(hex.slice(0, 2), 16) || 255;
-    const g   = parseInt(hex.slice(2, 4), 16) || 255;
-    const b   = parseInt(hex.slice(4, 6), 16) || 255;
-    return `rgba(${r},${g},${b},${desktopGridOpacity})`;
-  }, [desktopGridColor, desktopGridOpacity]);
+  useEffect(() => {
+  const { isLoggedIn, refreshCurrentUser } = useOSStore.getState();
+  if (isLoggedIn) refreshCurrentUser();
+}, []);
 
+  // Grid overlay color with user-controlled opacity
+const gridLineColor = useMemo(() => {
+  const hex = desktopGridColor.replace('#', '');
+  const r   = parseInt(hex.slice(0, 2), 16) || 255;
+  const g   = parseInt(hex.slice(2, 4), 16) || 255;
+  const b   = parseInt(hex.slice(4, 6), 16) || 255;
+  return `rgba(${r},${g},${b},${desktopGridOpacity})`;
+}, [desktopGridColor, desktopGridOpacity]);
+
+if (!hasHydrated) {
   return (
     <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        background: '#000',
+      }}
+    />
+  );
+}
+
+return (
+      <div
       key={desktopRefresh}
       ref={desktopRef}
       onContextMenu={handleContextMenu}

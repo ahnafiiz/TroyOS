@@ -1,28 +1,26 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-// import { useOSStore } from "@/store/useOSStore"; 
-import { OS_VERSION } from '@/store/useOSStore';
-import { OS_BUILD } from '@/store/useOSStore';
+import { OS_VERSION, OS_BUILD } from '@/store/useOSStore';
 
 interface Props {
   onComplete: () => void;
 }
 
 const BOOT_STEPS = [
-  { message: 'Booting Troy OS…',       weight: 4.5 },
-  { message: 'Initialising kernel…',  weight: 2 },
-  { message: 'Loading modules…',      weight: 3 },
-  { message: 'Starting services…',    weight: 6 },
-  { message: 'Authenticating session…', weight: 3 },
-  { message: 'Applying visual theme…',  weight: 2 },
-  { message: 'Almost there…',         weight: 2.5 },
+  { message: 'Starting Troy OS…', weight: 8.5 },
+  { message: 'Checking for Updates…', weight: 4.8 },
+  { message: 'Loading modules…', weight: 3.9 },
+  { message: 'Starting services…', weight: 6 },
+  { message: 'Checking for past logins…', weight: 5 },
+  { message: 'Applying visual theme…', weight: 3.2 },
+  { message: 'Almost there…', weight: 2.5 },
 ];
 
 export default function BootScreen({
-  onComplete
+  onComplete,
 }: Props) {
-  const [progress, setProgress] = useState(0);
+  const [, setProgress] = useState(0);
 
   const [message, setMessage] =
     useState('Starting up…');
@@ -30,12 +28,8 @@ export default function BootScreen({
   const [isExiting, setIsExiting] =
     useState(false);
 
-  const [isBypassed, setIsBypassed] =
-    useState(false);
-
   const bypassed = useRef(false);
 
-  // persistent progress
   const progressRef = useRef(0);
 
   useEffect(() => {
@@ -55,7 +49,8 @@ export default function BootScreen({
         setMessage(step.message);
 
         const target = Math.min(
-          ((i + 1) / BOOT_STEPS.length) * 99,
+          ((i + 1) / BOOT_STEPS.length) *
+            99,
           99
         );
 
@@ -66,7 +61,7 @@ export default function BootScreen({
           !bypassed.current
         ) {
           cur = Math.min(
-            cur + Math.random() * 5,
+            cur + Math.random() * 4,
             target
           );
 
@@ -78,7 +73,7 @@ export default function BootScreen({
             setTimeout(
               r,
               Math.random() *
-                120 *
+                110 *
                 step.weight +
                 20
             )
@@ -91,15 +86,15 @@ export default function BootScreen({
 
         setProgress(100);
 
-        setMessage('Troy OS ready.');
+        setMessage('Troy OS Booted...');
 
         await new Promise((r) =>
-          setTimeout(r, 500)
+          setTimeout(r, 700)
         );
 
         setIsExiting(true);
 
-        setTimeout(onComplete, 900);
+        setTimeout(onComplete, 1200);
       }
     };
 
@@ -110,13 +105,12 @@ export default function BootScreen({
     };
   }, [onComplete]);
 
-  // secret skip combo
   useEffect(() => {
     const seq = [
       'ArrowUp',
       'ArrowDown',
       'ArrowUp',
-      'ArrowDown'
+      'ArrowDown',
     ];
 
     let keys: string[] = [];
@@ -135,13 +129,11 @@ export default function BootScreen({
       ) {
         bypassed.current = true;
 
-        setIsBypassed(true);
-
         progressRef.current = 100;
 
         setProgress(100);
 
-        setMessage('Boot bypassed.');
+        setMessage('Boot Skipped...');
 
         setTimeout(
           () => setIsExiting(true),
@@ -166,10 +158,12 @@ export default function BootScreen({
 
   return (
     <div
-      className="boot-screen"
       style={{
         position: 'absolute',
         inset: 0,
+
+        background:
+          'radial-gradient(circle at center, #07101d 0%, #02050b 72%)',
 
         display: 'flex',
         flexDirection: 'column',
@@ -177,11 +171,9 @@ export default function BootScreen({
         alignItems: 'center',
         justifyContent: 'center',
 
-        gap: 40,
-
-        zIndex: 9999,
-
         overflow: 'hidden',
+
+        zIndex: 999999,
 
         fontFamily:
           'var(--font-family)',
@@ -192,79 +184,80 @@ export default function BootScreen({
         opacity: isExiting ? 0 : 1,
 
         transform: isExiting
-          ? 'scale(1.05) translateY(-10px)'
+          ? 'scale(1.02)'
           : 'scale(1)',
 
         transition:
-          'opacity 0.7s var(--ease-smooth), transform 0.9s var(--ease-spring)',
+          'opacity 1s ease, transform 1.2s ease',
       }}
     >
       <style>{`
-        @keyframes bootLogoRock {
-          0%, 100% {
-            transform: rotate(-4deg);
+        @keyframes spinnerRotate {
+          from {
+            transform: rotate(0deg);
           }
 
-          50% {
-            transform: rotate(4deg);
-          }
-        }
-
-        @keyframes bootLogoFloat {
-          0%, 100% {
-            transform: translateY(0);
-          }
-
-          50% {
-            transform: translateY(-14px);
+          to {
+            transform: rotate(360deg);
           }
         }
 
-        @keyframes gridPulse {
-          0%, 100% {
-            opacity: 0.12;
+        /*
+          VERY smooth Windows 11 style spinner
+          seamless loop with full rotation
+        */
+        @keyframes spinnerArc {
+          0% {
+            stroke-dasharray: 1 140;
+            stroke-dashoffset: 0;
           }
 
           50% {
-            opacity: 0.28;
+            stroke-dasharray: 90 140;
+            stroke-dashoffset: -35;
+          }
+
+          100% {
+            stroke-dasharray: 1 140;
+            stroke-dashoffset: -140;
+          }
+        }
+
+        @keyframes logoFloat {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+
+          50% {
+            transform: translateY(-4px);
+          }
+        }
+
+        @keyframes textFade {
+          0%, 100% {
+            opacity: 0.55;
+          }
+
+          50% {
+            opacity: 0.95;
           }
         }
       `}</style>
 
-      {/* grid backdrop */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-
-          pointerEvents: 'none',
-
-          backgroundImage: [
-            'linear-gradient(var(--accent-glow-soft) 1px, transparent 1px)',
-            'linear-gradient(90deg, var(--accent-glow-soft) 1px, transparent 1px)',
-          ].join(','),
-
-          backgroundSize: '44px 44px',
-
-          animation:
-            'gridPulse 5s ease-in-out infinite',
-        }}
-      />
-
-      {/* glow */}
+      {/* ambient glow */}
       <div
         style={{
           position: 'absolute',
 
-          width: 480,
-          height: 480,
+          width: 700,
+          height: 700,
 
           borderRadius: '50%',
 
           background:
-            'radial-gradient(circle, var(--accent-glow-soft) 0%, transparent 70%)',
+            'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 72%)',
 
-          filter: 'blur(60px)',
+          filter: 'blur(80px)',
 
           pointerEvents: 'none',
         }}
@@ -273,45 +266,35 @@ export default function BootScreen({
       {/* logo */}
       <div
         style={{
-          position: 'relative',
+          position: 'absolute',
 
-          zIndex: 1,
+          top: '31%',
+
+          transform:
+            'translateY(-50%)',
 
           textAlign: 'center',
 
           animation:
-            'bootLogoFloat 6s ease-in-out infinite',
+            'logoFloat 7s ease-in-out infinite',
         }}
       >
         <h1
           style={{
-            fontSize: 88,
-
-            fontWeight: 900,
-
-            letterSpacing: '-0.05em',
-
-            background:
-              'linear-gradient(180deg, var(--text-primary) 30%, var(--accent) 100%)',
-
-            WebkitBackgroundClip: 'text',
-
-            WebkitTextFillColor:
-              'transparent',
-
             margin: 0,
+
+            fontSize: 90,
+
+            fontWeight: 800,
+
+            letterSpacing: '-0.07em',
 
             lineHeight: 0.9,
 
-            padding: '0 50px',
+            color: '#ffffff',
 
-            display: 'block',
-
-            animation:
-              'bootLogoRock 3.5s ease-in-out infinite',
-
-            filter:
-              'drop-shadow(0 0 24px var(--accent-glow-soft))',
+            textShadow:
+              '0 0 24px rgba(255,255,255,0.08)',
           }}
         >
           TROY
@@ -319,125 +302,103 @@ export default function BootScreen({
 
         <p
           style={{
+            marginTop: 14,
+
             fontSize: 11,
 
-            fontWeight: 800,
+            fontWeight: 700,
 
-            letterSpacing: '0.9em',
-
-            color:
-              'var(--text-tertiary)',
+            letterSpacing: '0.8em',
 
             textTransform: 'uppercase',
 
-            margin: '16px 0 0',
+            color:
+              'rgb(255, 255, 255)',
 
-            paddingLeft: '0.9em',
+            paddingLeft: '0.8em',
           }}
         >
           OS
         </p>
       </div>
 
-      {/* progress */}
+      {/* spinner */}
       <div
         style={{
-          width: 320,
+          position: 'absolute',
+
+          top: '55%',
+
+          width: 82,
+          height: 82,
 
           display: 'flex',
-
-          flexDirection: 'column',
-
-          gap: 12,
-
-          zIndex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        <div
+        <svg
+          width="52"
+          height="52"
+          viewBox="0 0 52 52"
           style={{
-            display: 'flex',
+            animation:
+              'spinnerRotate 2.8s linear infinite',
 
-            justifyContent:
-              'space-between',
-
-            alignItems: 'center',
+            overflow: 'visible',
           }}
         >
-          <span
+          <circle
+            cx="26"
+            cy="26"
+            r="20"
+            fill="none"
+            stroke="rgba(255,255,255,0.98)"
+            strokeWidth="5"
+            strokeLinecap="round"
+            pathLength="140"
             style={{
-              fontSize: 10,
+              animation:
+                'spinnerArc 2.8s cubic-bezier(0.37, 0, 0.63, 1) infinite',
 
-              fontWeight: 700,
+              transformOrigin: 'center',
 
-              color:
-                'var(--text-tertiary)',
-
-              textTransform: 'uppercase',
-
-              letterSpacing: '0.09em',
-            }}
-          >
-            {message}
-          </span>
-
-          <span
-            style={{
-              fontSize: 14,
-
-              fontWeight: 800,
-
-              color: 'var(--accent)',
-
-              fontVariantNumeric:
-                'tabular-nums',
-
-              textShadow:
-                '0 0 10px var(--accent-glow-soft)',
-            }}
-          >
-            {Math.round(progress)}%
-          </span>
-        </div>
-
-        <div
-          style={{
-            width: '100%',
-
-            height: 10,
-
-            background:
-              'var(--surface-3)',
-
-            borderRadius:
-              'var(--radius-full)',
-
-            padding: 2,
-
-            border:
-              '1px solid var(--glass-border)',
-          }}
-        >
-          <div
-            style={{
-              height: '100%',
-
-              width: `${progress}%`,
-
-              background:
-                'linear-gradient(90deg, var(--accent-dark), var(--accent-light))',
-
-              borderRadius:
-                'var(--radius-full)',
-
-              transition: isBypassed
-                ? 'width 0.15s var(--ease-out)'
-                : 'width 0.35s var(--ease-spring)',
-
-              boxShadow:
-                '0 0 12px var(--accent-glow)',
+              filter:
+                'drop-shadow(0 0 10px rgba(255,255,255,0.34))',
             }}
           />
-        </div>
+        </svg>
+      </div>
+
+      {/* progress text */}
+      <div
+        style={{
+          position: 'absolute',
+
+          top: '63%',
+
+          textAlign: 'center',
+
+          animation:
+            'textFade 3s ease-in-out infinite',
+        }}
+      >
+        <p
+          style={{
+            margin: 0,
+
+            fontSize: 12,
+
+            fontWeight: 500,
+
+            color:
+              'rgba(255,255,255,0.72)',
+
+            letterSpacing: '0.03em',
+          }}
+        >
+          {message}
+        </p>
       </div>
 
       {/* footer */}
@@ -449,19 +410,16 @@ export default function BootScreen({
 
           textAlign: 'center',
 
-          opacity: 0.3,
+          opacity: 0.32,
         }}
       >
         <p
           style={{
+            margin: 0,
+
             fontSize: 9,
 
             fontWeight: 800,
-
-            margin: 0,
-
-            color:
-              'var(--text-primary)',
 
             letterSpacing: '0.15em',
           }}
@@ -471,17 +429,17 @@ export default function BootScreen({
 
         <p
           style={{
-            fontSize: 9,
-
             marginTop: 4,
 
+            fontSize: 9,
+
             color:
-              'var(--text-secondary)',
+              'rgba(255,255,255,0.55)',
 
             letterSpacing: '0.08em',
           }}
         >
-          v {OS_VERSION} - b {OS_BUILD}
+          version {OS_VERSION} - build {OS_BUILD}
         </p>
       </div>
     </div>

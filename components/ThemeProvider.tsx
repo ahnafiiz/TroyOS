@@ -20,8 +20,17 @@ import { useOSStore } from '@/store/useOSStore';
  *   neon   — hyper-dark with vivid accent glow
  *   aero   — Windows Aero-inspired with soft blue tones
  *   system — follows OS prefers-color-scheme
+ *
+ * FIX: Added hasHydrated guard so the effect does not run with SSR default
+ * values before Zustand has rehydrated from localStorage. This prevents the
+ * flash of light-mode styles (black text, bright surfaces) on hard refresh.
+ * ThemeProvider now also owns the `dark` class on <html> — Desktop.tsx should
+ * NOT toggle it independently.
  */
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
+  // ── Hydration guard — must be checked before reading any other state ──────
+  const hasHydrated = useOSStore(s => s.hasHydrated);
+
   const {
     themeMode,
     isDarkMode,
@@ -87,6 +96,12 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
   }, [dockSize]);
 
   useEffect(() => {
+    // ── HYDRATION GUARD ─────────────────────────────────────────────────────
+    // Do not apply any theme until Zustand has rehydrated from localStorage.
+    // The blocking <script> in layout.tsx handles the initial dark class so
+    // there is no flash of unstyled content during this wait.
+    if (!hasHydrated) return;
+
     const root    = document.documentElement;
     const accent  = deriveAccentTokens(accentColor ?? '#3b82f6');
     const dock    = getDockTokens();
@@ -94,6 +109,10 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     const blur    = uiBlur    ?? 24;
     const opacity = uiOpacity ?? 0.85;
     const isLight = mode === 'light';
+
+    // ── 0. dark class — ThemeProvider is the single owner ──────────────────
+    // Desktop.tsx must NOT also toggle this; one owner prevents race conditions.
+    root.classList.toggle('dark', mode !== 'light');
 
     // ── 1. Accent palette ───────────────────────────────────────────────────
     root.style.setProperty('--accent',           accent.base);
@@ -105,7 +124,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     root.style.setProperty('--accent-glow',      accent.glow);
     root.style.setProperty('--accent-glow-soft', accent.glowSoft);
     root.style.setProperty('--accent-color',     accent.base);
-    root.style.setProperty('--accent-contrast',  isLight ? '#ffffff' : '#ffffff');
+    root.style.setProperty('--accent-contrast',  '#ffffff');
 
     // ── 2. Glass / blur ─────────────────────────────────────────────────────
     root.style.setProperty('--glass-blur',     `${blur}px`);
@@ -126,17 +145,14 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
       root.style.setProperty('--glass-bg-deep',   `rgba(238, 242, 252, ${Math.min(opacity + 0.05, 0.95)})`);
       root.style.setProperty('--glass-border',    'rgba(0, 0, 0, 0.08)');
       root.style.setProperty('--glass-border-hi', 'rgba(0, 0, 0, 0.13)');
-      // Text — dark on light
       root.style.setProperty('--text-primary',    'rgba(12, 14, 26, 0.95)');
       root.style.setProperty('--text-secondary',  'rgba(12, 14, 26, 0.62)');
       root.style.setProperty('--text-tertiary',   'rgba(12, 14, 26, 0.40)');
       root.style.setProperty('--text-disabled',   'rgba(12, 14, 26, 0.25)');
       root.style.setProperty('--text-accent',     accent.dark);
-      // Borders — dark-on-light
       root.style.setProperty('--border-subtle',   'rgba(0, 0, 0, 0.05)');
       root.style.setProperty('--border-default',  'rgba(0, 0, 0, 0.09)');
       root.style.setProperty('--border-strong',   'rgba(0, 0, 0, 0.16)');
-      // Shadows — lighter for light mode
       root.style.setProperty('--shadow-xs',  '0 2px 6px   rgba(0,0,0,0.07)');
       root.style.setProperty('--shadow-sm',  '0 4px 14px  rgba(0,0,0,0.09)');
       root.style.setProperty('--shadow-md',  '0 8px 28px  rgba(0,0,0,0.11)');
@@ -299,7 +315,6 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     }
 
     // ── 11. Reduced motion — ONLY animation durations, nothing else ─────────
-    // This intentionally does NOT touch showDesktopGrid or snapToGridEnabled.
     root.style.setProperty('--dur-fast',   reducedMotion ? '0ms' : '120ms');
     root.style.setProperty('--dur-normal', reducedMotion ? '0ms' : '220ms');
     root.style.setProperty('--dur-slow',   reducedMotion ? '0ms' : '380ms');
@@ -315,9 +330,11 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     root.dataset.grid          = String(showDesktopGrid ?? true);
 
     // Apply background colour to body for areas outside the desktop component
-    document.body.style.backgroundColor = isLight ? '#eef1fa' : mode === 'neon' ? '#020308' : '#060810';
+    document.body.style.backgroundColor =
+      isLight ? '#eef1fa' : mode === 'neon' ? '#020308' : '#060810';
 
   }, [
+    hasHydrated, // ← guard: skip until store is ready
     accentColor,
     themeMode,
     isDarkMode,

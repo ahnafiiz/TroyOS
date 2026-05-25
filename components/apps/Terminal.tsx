@@ -2,260 +2,419 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useOSStore } from '@/store/useOSStore';
+import { OS_VERSION, OS_BUILD } from '@/store/useOSStore';
 
-// Static initialization marker for live system runtime checks
-const INITIAL_BOOT_TIME = typeof window !== 'undefined' ? Date.now() - 368420000 : Date.now();
+// ─── TYPES ───────────────────────────────────────────────────
 
-// Mock virtual filesystem map for commands like cat, ls, and grep
+type TerminalLineType = 'user' | 'sys' | 'system' | 'error' | 'input';
+
+interface TerminalLine {
+  type: TerminalLineType;
+  text: string;
+}
+
+interface User {
+  username: string;
+  email?: string;
+  password?: string;
+  role?: 'user' | 'admin';
+  isBanned?: boolean;
+  isFrozen?: boolean;
+  createdAt: string | number | Date;
+  [key: string]: unknown;
+}
+
+interface OSStore {
+  terminalLines?: TerminalLine[];
+  addTerminalLine: (type: TerminalLineType, text: string) => void;
+  clearTerminal?: () => void;
+  resetOS?: () => void;
+  user: User | null;
+  users?: User[];
+  setUsers?: (users: User[]) => void;
+  logout?: () => void;
+}
+
+// ─── CONSTANTS ───────────────────────────────────────────────
+
+const EMPTY_LINES: TerminalLine[] = [];
+
+const INITIAL_BOOT_TIME =
+  typeof window !== 'undefined' ? Date.now() - 368420000 : Date.now();
+
 const VIRTUAL_FS: Record<string, string> = {
-  'readme.md': `# TROY OS Core File System\nAuthorized security personnel access only.\nUse 'sudo troy-admin --override' to assert superuser authority.`,
-  'config.json': `{\n  "systemId": "NEXUS-V2",\n  "buildVersion": "2.0.6",\n  "kernelSecurity": "Enforced",\n  "adminAccessLog": "/var/log/secure_auth"\n}`,
-  'theme.css': `:root {\n  --terminal-green: #10b981;\n  --matrix-vibe: cubic-bezier(0.16, 1, 0.3, 1);\n}`,
-  'todo.txt': `- Fix memory leak in WindowManager wrapper\n- Patch sandbox escape vector in browser sub-process\n- Call Troy for database server credentials`
+  'readme.md': `# troy-os\nInternal system. Unauthorized access is prohibited.`,
+  'config.json': `{\n  "systemId": "NEXUS-V2",\n  "buildVersion": "2.0.6",\n  "kernelSecurity": "enforced",\n  "adminAccessLog": "/var/log/secure_auth"\n}`,
+  'theme.css': `:root {\n  --terminal-green: #10b981;\n}`,
+  'todo.txt': `- fix memory leak in WindowManager\n- patch sandbox escape in browser subprocess\n- call Troy re: db credentials`,
 };
 
+// ─── COMPONENT ───────────────────────────────────────────────
+
 export default function Terminal() {
-  const store = useOSStore();
-  const terminalLines = store.terminalLines || [];
+  const store = useOSStore() as unknown as OSStore;
+
+  const terminalLines = store.terminalLines ?? EMPTY_LINES;
   const addTerminalLine = store.addTerminalLine;
-  
-  // Safe extraction helper supporting fallback operations if clearTerminal isn't declared globally
-  const clearTerminal = (store as any).clearTerminal || (() => {
-    if (store.terminalLines) {
-      store.terminalLines.length = 0;
-    }
-  });
+  const user = store.user;
+  const users = store.users ?? [];
+  const setUsers = store.setUsers ?? (() => {});
+  const logout = store.logout ?? (() => {});
+
+  const username = user?.username ?? 'guest';
+  const isAdmin = user?.role === 'admin';
+
+  const clearTerminal =
+    store.clearTerminal ??
+    (() => {
+      if (store.terminalLines) store.terminalLines.length = 0;
+    });
 
   const [input, setInput] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
   const [bootTime, setBootTime] = useState(INITIAL_BOOT_TIME);
   const [history, setHistory] = useState<string[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [historyIndex, setHistoryIndex] = useState(-1);
+
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [terminalLines]);
 
-  // Utility to parse working real-world time ticks into system metrics strings
-  const getCalculatedUptime = (): string => {
-    const diff = Date.now() - bootTime;
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    const minutes = Math.floor((diff / (1000 * 60)) % 60);
-    const seconds = Math.floor((diff / 1000) % 60);
-    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  const getUptime = (): string => {
+    const diff  = Date.now() - bootTime;
+    const days  = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff / 3600000) % 24);
+    const mins  = Math.floor((diff / 60000) % 60);
+    const secs  = Math.floor((diff / 1000) % 60);
+    return `${days}d ${hours}h ${mins}m ${secs}s`;
   };
 
+  const line = (text: string) => addTerminalLine('sys', text);
+  const err  = (text: string) => addTerminalLine('error', text);
+
   const runCommand = (raw: string) => {
+    const requireAdmin = () => {
+      if (!isAdmin) { err('permission denied'); return false; }
+      return true;
+    };
+
     const trimmed = raw.trim();
     if (!trimmed) return;
 
     const tokens = trimmed.split(' ');
-    const baseCommand = tokens[0].toLowerCase();
-    const args = tokens.slice(1);
+    const cmd    = tokens[0].toLowerCase();
+    const args   = tokens.slice(1);
 
-    // ── INTERCEPT CLEAR COMMAND IMMEDIATELY ───────────────────────────────
-    if (baseCommand === 'clear') {
+    if (cmd === 'clear') {
       clearTerminal();
-      if (store.terminalLines) store.terminalLines.length = 0; 
+      if (store.terminalLines) store.terminalLines.length = 0;
       setInput('');
       return;
     }
 
-    // Log the current user input line to command histories
-    addTerminalLine('user' as any, trimmed);
-    const newHistory = [trimmed, ...history.filter(h => h !== trimmed)].slice(0, 50);
-    setHistory(newHistory);
+    addTerminalLine('user', trimmed);
+    setHistory(prev => [trimmed, ...prev.filter(h => h !== trimmed)].slice(0, 50));
     setHistoryIndex(-1);
 
-    switch (baseCommand) {
+    switch (cmd) {
+
       case 'help':
-        addTerminalLine('system', 
-`Available Commands:
-  help                    — Display system operations manual
-  ls                      — List structures in current directory tree
-  cat [file]              — View content logs of a specific file asset
-  echo [text]             — Write arguments to standard output stream
-  pwd                     — Print current working directory path context
-  whoami                  — Return active user profile scope
-  date                    — Fetch localized network calendar timestamp
-  uptime                  — Provide live operational hardware engine runtime
-  top / ps                — Inspect active real-time process architectures
-  neofetch / system       — Map core hardware and OS baseline parameters
-  ip / ifconfig           — Read host network adapter loopback details
-  ping [host]             — Send ICMP ECHO_REQUEST packets to network hosts
-  env                     — Print localized shell context environments
-  matrix                  — Run background visual subsystem validation
-  sudo [command]          — Execute operations under superuser restrictions
-  reset                   — [ADMIN ONLY] Performs a hard factory wipe of active memory registers
-  clear                   — Wipe current console layout display`
-        );
+        line(`┌─ Commands ────────────────────────────────┐`);
+        line(`│  help            show this list           │`);
+        line(`│  user            show your account info   │`);
+        line(`│  whoami          print current user       │`);
+        line(`│  ls              list files               │`);
+        line(`│  cat [file]      print file contents      │`);
+        line(`│  echo [text]     print text               │`);
+        line(`│  pwd             working directory        │`);
+        line(`│  date            current date & time      │`);
+        line(`│  uptime          system uptime            │`);
+        line(`│  top / ps        running processes        │`);
+        line(`│  neofetch        system info              │`);
+        line(`│  ip / ifconfig   network info             │`);
+        line(`│  ping [host]     ping a host              │`);
+        line(`│  env             environment vars         │`);
+        line(`│  matrix          ???                      │`);
+        line(`│  clear           clear terminal           │`);
+        line(`└───────────────────────────────────────────┘`);
+        if (isAdmin) {
+          line(``);
+          line(`┌─ Admin Commands ──────────────────────────┐`);
+          line(`│  ban <email>               ban a user     │`);
+          line(`│  unban <email>             unban a user   │`);
+          line(`│  freeze <email>            freeze a user  │`);
+          line(`│  unfreeze <email>          unfreeze user  │`);
+          line(`│  chpass <email> <pass>     change pass    │`);
+          line(`│  reset                     factory reset  │`);
+          line(`└───────────────────────────────────────────┘`);
+        }
         break;
 
-      case 'ls':
-        addTerminalLine('sys', '📁 Documents    📁 Downloads    📁 Pictures    📁 Games');
-        addTerminalLine('sys', '📄 config.json   📄 README.md    📄 theme.css   📄 todo.txt');
-        break;
-
-      case 'pwd':
-        addTerminalLine('sys', isAdmin ? '/root' : '/home/commander/workspace');
+      case 'user':
+        line(`┌─ Account ─────────────────────────────────┐`);
+        line(`│  username   ${(user?.username ?? 'guest').padEnd(30)}│`);
+        line(`│  email      ${(user?.email ?? 'n/a').padEnd(30)}│`);
+        line(`│  role       ${(user?.role ?? 'user').padEnd(30)}│`);
+        line(`│  joined     ${(String(user?.createdAt ?? 'unknown')).padEnd(30)}│`);
+        line(`└───────────────────────────────────────────┘`);
         break;
 
       case 'whoami':
-        addTerminalLine('sys', isAdmin ? 'root (Superuser / Chief Architect)' : 'commander (Access Level: Standard Developer)');
+        line(isAdmin ? 'root' : username);
+        break;
+
+      case 'ls':
+        line(`Documents/   Downloads/   Pictures/   Games/`);
+        line(`config.json  readme.md    theme.css   todo.txt`);
+        break;
+
+      case 'pwd':
+        line(isAdmin ? '/root' : `/home/${username}`);
         break;
 
       case 'date':
-        addTerminalLine('sys', new Date().toString());
+        line(new Date().toLocaleString('en-IE', { timeZone: 'Europe/Dublin' }));
         break;
 
       case 'echo':
-        addTerminalLine('sys', args.join(' '));
+        line(args.join(' '));
         break;
 
       case 'env':
-        addTerminalLine('sys', `USER=${isAdmin ? 'root' : 'commander'}\nHOME=${isAdmin ? '/root' : '/home/commander'}\nSHELL=/bin/troy-zsh\nPATH=/usr/local/sbin:/usr/local/bin:/usr/bin:/bin\nDISPLAY=:0.0\nHOSTTYPE=x86_64`);
+        line(`USER     = ${isAdmin ? 'root' : username}`);
+        line(`HOME     = ${isAdmin ? '/root' : `/home/${username}`}`);
+        line(`SHELL    = /bin/bash`);
+        line(`PATH     = /usr/local/sbin:/usr/local/bin:/usr/bin:/bin`);
+        line(`DISPLAY  = :0.0`);
+        line(`HOSTTYPE = x86_64`);
         break;
 
       case 'uptime':
-        addTerminalLine('sys', `System Up-Time Status: ${getCalculatedUptime()}`);
-        addTerminalLine('sys', `Load Averages: [0.21] [0.14] [0.05] | Cluster State: Operational`);
+        line(`uptime:  ${getUptime()}`);
+        line(`load avg: 0.21  0.14  0.05`);
         break;
 
       case 'ps':
       case 'top':
-        addTerminalLine('sys', `PID   USER       PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND`);
-        addTerminalLine('sys', `  1   root       20   0   42188   6102   4882 S   0.0   0.0   0:02.14 init-wrapper`);
-        addTerminalLine('sys', ` 14   commander  20   0  12.4g  184m  92m R   4.2   1.1   1:42.08 nextjs-server`);
-        addTerminalLine('sys', ` 44   commander  20   0  84221  1241   912 S   1.1   0.1   0:14.32 window-mgr`);
-        addTerminalLine('sys', ` 98   ${isAdmin ? 'root     ' : 'commander'}  20   0   18.1m   4.2m   2.1m R   0.7   0.0   0:00.62 terminal-shell`);
+        line(`  PID   USER       %CPU  %MEM  COMMAND`);
+        line(`  ───   ────       ────  ────  ───────`);
+        line(`    1   root        0.0   0.0  init`);
+        line(`   14   ${(isAdmin ? 'root' : username).padEnd(10)}  4.2   1.1  nextjs-server`);
+        line(`   44   ${(isAdmin ? 'root' : username).padEnd(10)}  1.1   0.1  window-mgr`);
+        line(`   98   ${(isAdmin ? 'root' : username).padEnd(10)}  0.7   0.0  terminal`);
         break;
 
       case 'ping':
         if (!args[0]) {
-          addTerminalLine('error', 'Error: Host address parameter required. Usage: ping [domain/ip]');
+          err('ping: missing host operand');
         } else {
-          const target = args[0];
-          addTerminalLine('sys', `PING ${target} (56(84) bytes of data).`);
-          addTerminalLine('sys', `64 bytes from ${target}: icmp_seq=1 ttl=64 time=14.2 ms`);
-          addTerminalLine('sys', `64 bytes from ${target}: icmp_seq=2 ttl=64 time=11.8 ms`);
-          addTerminalLine('sys', `--- ${target} ping statistics --- 2 packets transmitted, 0% packet loss`);
+          const host = args[0];
+          line(`PING ${host}: 56 data bytes`);
+          line(`64 bytes from ${host}: icmp_seq=0 ttl=64 time=12.4 ms`);
+          line(`64 bytes from ${host}: icmp_seq=1 ttl=64 time=11.8 ms`);
+          line(`2 packets transmitted, 2 received, 0% packet loss`);
         }
         break;
 
       case 'ip':
       case 'ifconfig':
-        addTerminalLine('sys', `eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500`);
-        addTerminalLine('sys', `      inet 192.168.1.144  netmask 255.255.255.0  broadcast 192.168.1.255`);
-        addTerminalLine('sys', `      inet6 fe80::ea11:8bff:fe29:92ad  prefixlen 64  scopeid 0x20<link>`);
-        addTerminalLine('sys', `lo:   inet 127.0.0.1  netmask 255.0.0.0 (Local Loopback Intercept)`);
+        line(`eth0   inet 192.168.1.144   netmask 255.255.255.0`);
+        line(`lo     inet 127.0.0.1       netmask 255.0.0.0`);
         break;
 
       case 'cat':
         if (!args[0]) {
-          addTerminalLine('error', 'Error: File target parameter format required: "cat [filename.extension]"');
+          err('cat: missing operand');
         } else {
-          const targetFile = args[0].toLowerCase();
-          if (VIRTUAL_FS[targetFile]) {
-            addTerminalLine('sys', VIRTUAL_FS[targetFile]);
+          const file = args[0].toLowerCase();
+          if (VIRTUAL_FS[file]) {
+            line(VIRTUAL_FS[file]);
           } else {
-            addTerminalLine('error', `Error: Static target out of local grid tracking bounds: '${args[0]}'`);
+            err(`cat: ${args[0]}: no such file or directory`);
           }
         }
         break;
 
       case 'matrix':
-        addTerminalLine('sys', 'INITIALIZING VECTOR MAP STREAM OVERRIDE...');
+        line('wake up, neo...');
         let counter = 0;
         const interval = setInterval(() => {
-          if (counter > 8) {
-            clearInterval(interval);
-            return;
-          }
-          const randomBits = Array.from({length: 4}, () => Math.random().toString(36).substring(2, 10)).join('::');
-          addTerminalLine('sys', `[KRNL-DIAG-ERR]::0x7F2B3${randomBits}`);
+          if (counter > 8) { clearInterval(interval); return; }
+          line(Array.from({ length: 4 }, () =>
+            Math.random().toString(36).substring(2, 10)
+          ).join('  '));
           counter++;
         }, 80);
         break;
 
-      case 'system':
       case 'neofetch':
-        addTerminalLine('sys', `
-████████╗██████╗  ██████╗ ██╗   ██╗     ██████╗ ███████╗
-╚══██╔══╝██╔══██╗██╔═══██╗╚██╗ ██╔╝     ██╔═══██╗██╔════╝
-   ██║   ██████╔╝██║   ██║ ╚████╔╝      ██║   ██║███████╗
-   ██║   ██╔══██╗██║   ██║  ╚██╔╝       ██║   ██║╚════██║
-   ██║   ██║  ██║╚██████╔╝   ██║        ╚██████╔╝███████║
-   ╚═╝   ╚═╝  ╚═╝ ╚═════╝    ╚═╝         ╚═════╝ ╚══════╝
- ─────────────────────────────────────────────────────────────
-  OS: Troy OS v2.0.6 x86_64 (Custom NextJS Engine Frame)
-  Kernel: Linux 6.8.9-troy-hypervisor-release
-  Shell: Troy ZSH Node-Terminal v2.4
-  Uptime: ${getCalculatedUptime()}
-  CPU: AMD Ryzen 9 7950X V-Cache @ 5.70GHz (32 Threads)
-  GPU: NVIDIA GeForce RTX 4090 (24GB VRAM)
-  Memory: 4,096 MiB / 16,384 MiB Assigned Allocation
-  Resolution: ${typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : 'Dynamic CSS Canvas'}`
-        );
+      case 'system':
+        line(`                                              `);
+        line(` ████████╗██████╗  ██████╗ ██╗   ██╗        `);
+        line(` ╚══██╔══╝██╔══██╗██╔═══██╗╚██╗ ██╔╝        `);
+        line(`    ██║   ██████╔╝██║   ██║ ╚████╔╝         `);
+        line(`    ██║   ██╔══██╗██║   ██║  ╚██╔╝          `);
+        line(`    ██║   ██║  ██║╚██████╔╝   ██║           `);
+        line(`    ╚═╝   ╚═╝  ╚═╝ ╚═════╝    ╚═╝           `);
+        line(`                                              `);
+        line(`  OS          Troy OS ${OS_VERSION} (build ${OS_BUILD})`);
+        line(`  Uptime      ${getUptime()}`);
+        line(`  Shell       bash`);
+        line(`  User        ${username}${isAdmin ? ' (admin)' : ''}`);
+        line(`  Resolution  ${typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : 'unknown'}`);
+        line(`                                              `);
         break;
 
-      case 'sudo':
-        const innerArg = args.join(' ').toLowerCase();
-        if (innerArg === 'troy-admin --override' || innerArg === 'troy-admin') {
-          addTerminalLine('error', '⚠️ WARNING: ATTEMPTING DIRECT SYSTEM OVERRIDE PROTOCOL...');
-          setTimeout(() => {
-            setIsAdmin(true); // Elevates prompt to root authority status
-            addTerminalLine('sys', '🔓 ACCESS GRANTED. CREDENTIAL SIGNATURE MATCHED.');
-            addTerminalLine('sys', '==================================================');
-            addTerminalLine('sys', '⚡ WELCOME CHIEF ARCHITECT TROY. ENFORCING ADMIN OVERRIDES.');
-            addTerminalLine('sys', '▶ Prompt Status: Elevated to root@troy-os');
-            addTerminalLine('sys', '▶ Permissions Enabled: [reset], [rm -rf /]');
-            addTerminalLine('sys', '▶ Current Session Token: root@troy-os::[SECURE_SHELL]');
-            addTerminalLine('sys', '==================================================');
-          }, 600);
-        } else if (args.length === 0) {
-          addTerminalLine('error', 'usage: sudo command [arguments...]');
-        } else {
-          addTerminalLine('error', `Permission denied: User 'commander' does not possess root access privileges to run '${args[0]}'.`);
+      // ─── ADMIN ONLY ──────────────────────────────────────────
+
+      case 'ban':
+        if (requireAdmin()) {
+          const email = args[0];
+          if (!email) {
+            err('usage: ban <email>');
+          } else {
+            const idx = users.findIndex((u: User) => u.email === email);
+            if (idx === -1) {
+              err(`user not found: ${email}`);
+            } else {
+              fetch('/api/users', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, updates: { isBanned: true } }),
+              }).catch(console.error);
+              const newUsers = [...users];
+              newUsers[idx] = { ...users[idx], isBanned: true };
+              setUsers(newUsers);
+              line(`banned: ${email}`);
+              if (user?.email === email) {
+                setTimeout(() => logout(), 800);
+              }
+            }
+          }
+        }
+        break;
+
+      case 'unban':
+        if (requireAdmin()) {
+          const email = args[0];
+          if (!email) {
+            err('usage: unban <email>');
+          } else {
+            const idx = users.findIndex((u: User) => u.email === email);
+            if (idx === -1) {
+              err(`user not found: ${email}`);
+            } else {
+              fetch('/api/users', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, updates: { isBanned: false } }),
+              }).catch(console.error);
+              const newUsers = [...users];
+              newUsers[idx] = { ...users[idx], isBanned: false };
+              setUsers(newUsers);
+              line(`unbanned: ${email}`);
+            }
+          }
+        }
+        break;
+
+      case 'freeze':
+        if (requireAdmin()) {
+          const email = args[0];
+          if (!email) {
+            err('usage: freeze <email>');
+          } else {
+            const idx = users.findIndex((u: User) => u.email === email);
+            if (idx === -1) {
+              err(`user not found: ${email}`);
+            } else {
+              fetch('/api/users', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, updates: { isFrozen: true } }),
+              }).catch(console.error);
+              const newUsers = [...users];
+              newUsers[idx] = { ...users[idx], isFrozen: true };
+              setUsers(newUsers);
+              line(`frozen: ${email}`);
+              if (user?.email === email) {
+                setTimeout(() => logout(), 800);
+              }
+            }
+          }
+        }
+        break;
+
+      case 'unfreeze':
+        if (requireAdmin()) {
+          const email = args[0];
+          if (!email) {
+            err('usage: unfreeze <email>');
+          } else {
+            const idx = users.findIndex((u: User) => u.email === email);
+            if (idx === -1) {
+              err(`user not found: ${email}`);
+            } else {
+              fetch('/api/users', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, updates: { isFrozen: false } }),
+              }).catch(console.error);
+              const newUsers = [...users];
+              newUsers[idx] = { ...users[idx], isFrozen: false };
+              setUsers(newUsers);
+              line(`unfrozen: ${email}`);
+            }
+          }
+        }
+        break;
+
+      case 'chpass':
+        if (requireAdmin()) {
+          const [email, newPass] = args;
+          if (!email || !newPass) {
+            err('usage: chpass <email> <new_password>');
+          } else {
+            const idx = users.findIndex((u: User) => u.email === email);
+            if (idx === -1) {
+              err(`user not found: ${email}`);
+            } else {
+              fetch('/api/users', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, updates: { password: newPass } }),
+              }).catch(console.error);
+              const newUsers = [...users];
+              newUsers[idx] = { ...users[idx], password: newPass };
+              setUsers(newUsers);
+              line(`password updated: ${email}`);
+            }
+          }
         }
         break;
 
       case 'reset':
-        // ── LIVE SUPERUSER ADMINISTRATIVE ACTION ───────────────────────────
-        if (!isAdmin) {
-          addTerminalLine('error', 'bash: reset: Permission denied. Superuser (root) privileges required.');
-        } else {
-          addTerminalLine('error', 'CRITICAL: INITIATING GLOBAL FACTORY SYSTEM RESET...');
-          
-          setTimeout(() => {
-            // 1. Wipe out terminal line logs entirely
-            clearTerminal();
-            if (store.terminalLines) store.terminalLines.length = 0;
-
-            // 2. Clear down to standard non-root access
-            setIsAdmin(false);
-
-            // 3. Reset the system baseline ticker back to zero live seconds ago
-            setBootTime(Date.now());
-
-            // 4. Try calling a global state reset handler if provided in useOSStore
-            if ((store as any).resetOS) {
-              (store as any).resetOS();
-            }
-
-            addTerminalLine('sys', '🔄 Troy OS Kernels reinitialized successfully.');
-            addTerminalLine('sys', 'All memory allocations flushed. System runtime tracking reset to 0s.');
-            addTerminalLine('sys', 'Type "help" to list operational commands.');
-          }, 1200);
-        }
+        if (!requireAdmin()) break;
+        err('initiating factory reset...');
+        setTimeout(() => {
+          clearTerminal();
+          if (store.terminalLines) store.terminalLines.length = 0;
+          setBootTime(Date.now());
+          if (store.resetOS) store.resetOS();
+          line('system reset complete.');
+          line('type "help" to get started.');
+        }, 1200);
         break;
 
       default:
-        addTerminalLine('error', `Command execution failure: '${baseCommand}' is recognized as an invalid operator.\nType "help" to view active pipeline structures.`);
+        err(`${cmd}: command not found`);
         break;
     }
   };
+
+  // ─── KEYBOARD ────────────────────────────────────────────────
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -263,48 +422,59 @@ export default function Terminal() {
       setInput('');
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (history.length > 0 && historyIndex < history.length - 1) {
-        const nextIdx = historyIndex + 1;
-        setHistoryIndex(nextIdx);
-        setInput(history[nextIdx]);
-      }
+      setHistoryIndex(prev => {
+        const next = Math.min(prev + 1, history.length - 1);
+        setInput(history[next] ?? '');
+        return next;
+      });
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (historyIndex > 0) {
-        const nextIdx = historyIndex - 1;
-        setHistoryIndex(nextIdx);
-        setInput(history[nextIdx]);
-      } else if (historyIndex === 0) {
-        setHistoryIndex(-1);
-        setInput('');
-      }
+      setHistoryIndex(prev => {
+        const next = prev - 1;
+        if (next < 0) { setInput(''); return -1; }
+        setInput(history[next] ?? '');
+        return next;
+      });
     }
   };
 
-  return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#040d07', fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', monospace" }}>
-      {/* Console Display Output Area */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {terminalLines.map((line, i) => {
-          const isUserCommand = line.type === 'user' || line.type === 'input';
-          const isSystemError = line.type === 'error';
+  // ─── UI ──────────────────────────────────────────────────────
 
+  return (
+    <div style={{
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      background: '#040d07',
+      fontFamily: "'SF Mono', 'Cascadia Code', monospace",
+    }}>
+      {/* OUTPUT */}
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+      }}>
+        {terminalLines.map((line, i) => {
+          const isUserCmd = line.type === 'user' || line.type === 'input';
+          const isError   = line.type === 'error';
           return (
             <div key={i} style={{
               fontSize: 12,
-              lineHeight: 1.6,
-              whiteSpace: 'pre-wrap',
-              color: isSystemError ? '#ef4444' 
-                   : isUserCommand ? '#ffffff' 
-                   : '#10b981',
+              lineHeight: 1.7,
+              whiteSpace: 'pre',
+              color: isError ? '#ef4444' : isUserCmd ? '#ffffff' : '#10b981',
             }}>
-              {isUserCommand && (
+              {isUserCmd && (
                 <span>
-                  {/* Dynamic user label based on admin flag */}
                   <span style={{ color: isAdmin ? '#ef4444' : '#10b981', fontWeight: 600 }}>
-                    {isAdmin ? 'root@troy-os' : 'commander@troy-os'}
+                    {isAdmin ? 'root@troy-os' : `${username}@troy-os`}
                   </span>
-                  <span style={{ color: 'rgba(255,255,255,0.3)' }}>{isAdmin ? ':# ' : ':~$ '}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.3)' }}>
+                    {isAdmin ? ':# ' : ':~$ '}
+                  </span>
                 </span>
               )}
               {line.text}
@@ -314,46 +484,52 @@ export default function Terminal() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input Field Entry Panel */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: 8, 
-        padding: '10px 16px', 
-        borderTop: '1px solid rgba(16,185,129,0.12)', 
-        background: 'rgba(2, 6, 4, 0.6)', 
-        flexShrink: 0 
+      {/* INPUT */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '10px 16px',
+        borderTop: '1px solid rgba(16,185,129,0.12)',
+        background: 'rgba(2,6,4,0.6)',
+        flexShrink: 0,
       }}>
-        {/* Dynamic lower prompt text field indicator */}
-        <span style={{ fontSize: 12, color: isAdmin ? '#ef4444' : '#10b981', fontWeight: 600, whiteSpace: 'nowrap' }}>
-          {isAdmin ? 'root@troy-os:# ' : 'commander@troy-os:~$ '}
+        <span style={{
+          fontSize: 12,
+          color: isAdmin ? '#ef4444' : '#10b981',
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+        }}>
+          {isAdmin ? 'root@troy-os:# ' : `${username}@troy-os:~$ `}
         </span>
+
         <input
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           autoFocus
-          placeholder={isAdmin ? "System compromised. Awaiting absolute override..." : "Enter core pipeline directive..."}
-          style={{ 
-            flex: 1, 
-            background: 'none', 
-            border: 'none', 
-            color: '#fff', 
-            fontFamily: 'inherit', 
-            fontSize: 12, 
-            outline: 'none' 
+          placeholder=""
+          style={{
+            flex: 1,
+            background: 'none',
+            border: 'none',
+            color: '#fff',
+            fontFamily: 'inherit',
+            fontSize: 12,
+            outline: 'none',
           }}
         />
+
         <style>{`
-          @keyframes terminalBlink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-          }
-          .terminal-cursor {
-            animation: terminalBlink 1s step-end infinite;
-          }
+          @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+          .cursor { animation: blink 1s step-end infinite; }
         `}</style>
-        <span className="terminal-cursor" style={{ fontSize: 13, color: isAdmin ? '#ef4444' : '#10b981', marginLeft: -4 }}>█</span>
+
+        <span className="cursor" style={{
+          fontSize: 13,
+          color: isAdmin ? '#ef4444' : '#10b981',
+          marginLeft: -4,
+        }}>█</span>
       </div>
     </div>
   );

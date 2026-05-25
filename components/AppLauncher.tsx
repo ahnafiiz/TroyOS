@@ -1,4 +1,3 @@
-// applauncher.tsx
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -7,7 +6,12 @@ import { APPS } from '@/config/apps';
 import AppIcon from './AppIcon';
 
 export default function AppLauncher() {
-  const { openApp, toggleLauncher, launcherOpen, currentTime, launcherPosition, taskbarHeight, launcherOpacity, iconImages } = useOSStore();
+  const {
+    openApp, toggleLauncher, launcherOpen, currentTime,
+    launcherPosition, taskbarHeight, launcherOpacity, iconImages,
+  } = useOSStore();
+
+  const user = useOSStore((s) => s.user);
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleOpenApp = (app: typeof APPS[0]) => {
@@ -37,39 +41,41 @@ export default function AppLauncher() {
     }
   })();
 
+  const avatarLetter = user?.username?.[0]?.toUpperCase() ?? '?';
+
   return (
     <>
       {/* Backdrop */}
-       <div
-         onClick={toggleLauncher}
-         data-context-ignore
-         onContextMenu={(e) => e.stopPropagation()}
-         style={{
-           position: 'absolute', inset: 0,
-           zIndex: 'calc(var(--z-launcher) - 1)',
-           background: 'rgba(0,0,0,0.18)',
-           backdropFilter: 'blur(4px)',
-           WebkitBackdropFilter: 'blur(4px)',
-         }}
-       />
+      <div
+        onClick={toggleLauncher}
+        data-context-ignore
+        onContextMenu={(e) => e.stopPropagation()}
+        style={{
+          position: 'absolute', inset: 0,
+          zIndex: 'calc(var(--z-launcher) - 1)',
+          background: 'rgba(0,0,0,0.18)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+        }}
+      />
 
       {/* Panel */}
-       <div
-         onClick={e => e.stopPropagation()}
-         data-context-ignore
-         className="launcher-panel launcher-reveal"
-         style={{
-           position: 'absolute',
-           ...pos,
-           zIndex: 'var(--z-launcher)',
-           borderRadius: 'var(--radius-xl)',
-           width: 580,
-           height: 440,
-           display: 'flex',
-           overflow: 'hidden',
-           background: `rgba(10,12,18,${launcherOpacity})`,
-         }}
-       >
+      <div
+        onClick={e => e.stopPropagation()}
+        data-context-ignore
+        className="launcher-panel launcher-reveal"
+        style={{
+          position: 'absolute',
+          ...pos,
+          zIndex: 'var(--z-launcher)',
+          borderRadius: 'var(--radius-xl)',
+          width: 580,
+          height: 440,
+          display: 'flex',
+          overflow: 'hidden',
+          background: `rgba(10,12,18,${launcherOpacity})`,
+        }}
+      >
         <style>{`
           .launcher-search-input::placeholder { color: var(--text-tertiary); }
           .launcher-app-card .icon-wrapper {
@@ -96,16 +102,20 @@ export default function AppLauncher() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: '50%',
-                background: `linear-gradient(135deg, var(--accent), var(--accent-light))`,
+                background: 'linear-gradient(135deg, var(--accent), var(--accent-light))',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 13, fontWeight: 700,
                 boxShadow: '0 4px 12px var(--accent-glow-soft)',
                 border: '1px solid var(--accent-border)',
                 color: 'var(--accent-contrast)',
                 flexShrink: 0,
-              }}>C</div>
+              }}>
+                {avatarLetter}
+              </div>
               <div>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>Commander</div>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {user?.username ?? 'Guest'}
+                </div>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 1 }}>Active</div>
               </div>
             </div>
@@ -117,14 +127,16 @@ export default function AppLauncher() {
                 color: 'var(--text-primary)',
                 letterSpacing: '-0.03em',
                 fontVariantNumeric: 'tabular-nums',
-              }}>{timeString}</span>
+              }}>
+                {timeString}
+              </span>
               <span style={{
-                fontSize: 'var(--text-xs)',
-                fontWeight: 700,
+                fontSize: 'var(--text-xs)', fontWeight: 700,
                 color: 'var(--text-tertiary)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-              }}>System Time</span>
+                textTransform: 'uppercase', letterSpacing: '0.06em',
+              }}>
+                System Time
+              </span>
             </div>
           </div>
 
@@ -135,10 +147,8 @@ export default function AppLauncher() {
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-xs)',
-            fontSize: 'var(--text-xs)',
-            fontWeight: 700,
-            color: 'var(--text-tertiary)',
-            letterSpacing: '0.04em',
+            fontSize: 'var(--text-xs)', fontWeight: 700,
+            color: 'var(--text-tertiary)', letterSpacing: '0.04em',
           }}>
             TROY OS v{OS_VERSION}
           </div>
@@ -154,7 +164,9 @@ export default function AppLauncher() {
             <span style={{
               position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
               fontSize: 13, color: 'var(--text-tertiary)', pointerEvents: 'none',
-            }}>🔍</span>
+            }}>
+              🔍
+            </span>
             <input
               type="text"
               value={searchQuery}
@@ -212,14 +224,24 @@ export default function AppLauncher() {
                         boxShadow: `0 6px 14px -4px ${app.color}18`,
                       }}
                     >
-                      <AppIcon src={iconImages[app.icon]} size={22} color={app.color} />
+                      <AppIcon
+                        src={iconImages[app.icon] ?? `/icons/apps/${app.icon}.svg`}
+                        size={22}
+                        color={app.color}
+                      />
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden' }}>
-                      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontWeight: 600, letterSpacing: '-0.005em' }}>
+                      <span style={{
+                        fontSize: 'var(--text-sm)', color: 'var(--text-primary)',
+                        fontWeight: 600, letterSpacing: '-0.005em',
+                      }}>
                         {app.name}
                       </span>
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{
+                        fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}>
                         {app.description}
                       </span>
                     </div>
@@ -235,7 +257,10 @@ export default function AppLauncher() {
             borderTop: '1px solid var(--border-subtle)',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-disabled)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{
+              fontSize: 'var(--text-xs)', color: 'var(--text-disabled)',
+              fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
+            }}>
               {filteredApps.length === APPS.length ? 'All systems nominal' : `${filteredApps.length} result${filteredApps.length !== 1 ? 's' : ''}`}
             </span>
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-disabled)', fontWeight: 600 }}>
