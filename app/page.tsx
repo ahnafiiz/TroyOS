@@ -21,16 +21,15 @@ export default function Home() {
   const isLoggedIn      = useOSStore((s) => s.isLoggedIn);
   const setBootComplete = useOSStore((s) => s.setBootComplete);
 
-  useEffect(() => {
-    const id = setTimeout(() => setReady(true), 0);
-    return () => clearTimeout(id);
-  }, []);
+useEffect(() => {
+  const id = setTimeout(() => setReady(true), 0);
+  return () => clearTimeout(id);
+}, []);
 
-  // Fetch latest users from Google Sheet on every page load,
-  // overwriting whatever was cached in localStorage.
-  useEffect(() => {
-    useOSStore.getState().loadUsers();
-  }, []);
+useEffect(() => {
+  useOSStore.getState().loadUsers();
+}, []);
+
 
   const deriveScreen = useCallback((): Screen => {
     if (!bootComplete) return 'boot';
