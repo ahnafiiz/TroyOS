@@ -8,8 +8,14 @@ export async function POST(req: NextRequest) {
 
     const users = await fetchAllUsers();
 
+    console.log('All users:', JSON.stringify(users.map(u => ({ username: u.username, email: u.email, password: u.password }))));
+    console.log('Trying:', { identifier, password });
+
     const user = users.find(
-      (u) => (u.email === identifier || u.username === identifier) && u.password === password
+      (u) =>
+        (u.email?.trim().toLowerCase() === identifier?.trim().toLowerCase() ||
+         u.username?.trim().toLowerCase() === identifier?.trim().toLowerCase()) &&
+        u.password?.trim() === password?.trim()
     );
 
     if (!user) {
