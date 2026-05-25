@@ -21,7 +21,7 @@ export const APPS: AppConfig[] = [
     description: 'Web Workspace',
     defaultWidth: 860,
     defaultHeight: 560,
-    url: 'https://www.google.com/webhp?igu=1',
+    url: 'https://troxy-troyos.vercel.app',
   },
   {
     id: 'notes',
@@ -47,7 +47,7 @@ export const APPS: AppConfig[] = [
   // ─── ENTERTAINMENT ──────────────────────────────────
   {
     id: 'gaming',
-    name: 'Gaming Hub',
+    name: 'Games',
     icon: 'games',
     color: '#8b5cf6',
     category: 'Entertainment',
