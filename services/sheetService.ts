@@ -1,5 +1,3 @@
-import { promises as fs } from "fs";
-import path from 'path';
 import { google, sheets_v4 } from "googleapis";
 
 export interface User {
@@ -18,8 +16,7 @@ let sheets: sheets_v4.Sheets | null = null;
 async function getSheetsClient() {
   if (sheets) return sheets;
 
-  const credPath = path.join(process.cwd(), process.env.GOOGLE_SERVICE_ACCOUNT_PATH || '');
-  const credentials = JSON.parse(await fs.readFile(credPath, "utf8"));
+  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON!);
 
   const auth = new google.auth.GoogleAuth({
     credentials,
