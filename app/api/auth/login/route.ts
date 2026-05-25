@@ -1,34 +1,26 @@
+// app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAllUsers, updateUser, updateLastLogin } from '@/services/sheetService';
+import { fetchAllUsers, updateLastLogin } from '@/services/sheetService';
 
-export async function GET() {
+export async function POST(req: NextRequest) {
   try {
+    const { identifier, password } = await req.json();
+
     const users = await fetchAllUsers();
-    return NextResponse.json(users);
-  } catch (err) {
-    console.error("Failed to fetch users:", err);
-    return NextResponse.json([], { status: 500 });
-  }
-}
 
-export async function PATCH(req: NextRequest) {
-  try {
-    const { email, updates } = await req.json();
-    await updateUser(email, updates);
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error("Failed to update user:", err);
-    return NextResponse.json({ ok: false }, { status: 500 });
-  }
-}
+    const user = users.find(
+      (u) => (u.email === identifier || u.username === identifier) && u.password === password
+    );
 
-export async function PUT(req: NextRequest) {
-  try {
-    const { email } = await req.json();
-    await updateLastLogin(email);
-    return NextResponse.json({ ok: true });
+    if (!user) {
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    }
+
+    await updateLastLogin(user.email);
+
+    return NextResponse.json({ ok: true, user });
   } catch (err) {
-    console.error("Failed to update last login:", err);
-    return NextResponse.json({ ok: false }, { status: 500 });
+    console.error('Login error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
