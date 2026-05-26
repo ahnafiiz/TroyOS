@@ -19,6 +19,16 @@ export interface Theme { id: number; name: string; wallpaper: string; gradient?:
 export interface TerminalLine { type: "system"|"input"|"output"|"error"|"user"|"sys"; text: string; }
 export interface AIMessage { role: "user"|"assistant"; text: string; }
 
+export interface BroadcastMessage {
+  id: string;
+  message: string;
+  from: string;
+  fromRole: string;
+  dismissible: boolean;
+  autoClose: number | null;
+  createdAt: string;
+}
+
 export type ThemeMode = "dark"|"light"|"system"|"glass"|"neon"|"aero";
 export type DockPosition = "bottom"|"left"|"right"|"top";
 export type DockStyle = "glass"|"solid"|"minimal"|"transparent"|"pill";
@@ -30,9 +40,16 @@ export type NotificationPosition = "top-right"|"top-left"|"bottom-right"|"bottom
 export type WindowAnimationCurve = "smooth"|"slide"|"fade"|"snappy"|"retro-pop";
 
 export interface UserRecord {
-  role?: 'user' | 'admin';
+  role?: 'owner' | 'admin' | 'moderator' | 'user';
   isBanned?: boolean;
   isFrozen?: boolean;
+  isMuted?: boolean;
+  isBannable?: boolean;
+  isFreezeable?: boolean;
+  banUntil?: string;
+  freezeUntil?: string;
+  muteUntil?: string;
+  kickedAt?: string;
   username: string;
   email: string;
   password?: string;
@@ -178,6 +195,12 @@ export interface OSState {
   refreshCurrentUser: () => Promise<void>;
   isUsersLoading: boolean;
   setIsUsersLoading: (val: boolean) => void;
+  /* BROADCAST */
+  broadcastMessages: BroadcastMessage[];
+  addBroadcast: (msg: BroadcastMessage) => void;
+  dismissBroadcast: (id: string) => void;
+  seenKickedAt: string | null;
+  setSeenKickedAt: (val: string | null) => void;
 }
 
 export const useOSStore = create<OSState>()(
@@ -325,7 +348,6 @@ export const useOSStore = create<OSState>()(
       setPendingOTP: (code) => set({ pendingOTP: code }),
       logout: () => set({ user: null, isLoggedIn: false, windows: [], activeWindowId: null }),
 
-
       loadUsers: async () => {
         set({ isUsersLoading: true });
         try {
@@ -335,16 +357,25 @@ export const useOSStore = create<OSState>()(
             const mapped: UserRecord[] = fresh.map((u: {
               username: string; email: string; password?: string;
               createdAt: string; role?: string; isBanned?: boolean;
-              isFrozen?: boolean; lastLogin?: string;
+              isFrozen?: boolean; isMuted?: boolean; isBannable?: boolean;
+              isFreezeable?: boolean; banUntil?: string; freezeUntil?: string;
+              muteUntil?: string; kickedAt?: string; lastLogin?: string;
             }) => ({
-              username:  u.username,
-              email:     u.email,
-              password:  u.password ?? "",
-              createdAt: u.createdAt ?? "",
-              role:      u.role === "admin" ? "admin" : "user",
-              isBanned:  !!u.isBanned,
-              isFrozen:  !!u.isFrozen,
-              lastLogin: u.lastLogin ?? "",
+              username:     u.username,
+              email:        u.email,
+              password:     u.password ?? "",
+              createdAt:    u.createdAt ?? "",
+              role:         (u.role as UserRecord["role"]) ?? "user",
+              isBanned:     !!u.isBanned,
+              isFrozen:     !!u.isFrozen,
+              isMuted:      !!u.isMuted,
+              isBannable:   !!u.isBannable,
+              isFreezeable: !!u.isFreezeable,
+              banUntil:     u.banUntil ?? "",
+              freezeUntil:  u.freezeUntil ?? "",
+              muteUntil:    u.muteUntil ?? "",
+              kickedAt:     u.kickedAt ?? "",
+              lastLogin:    u.lastLogin ?? "",
             }));
             set({ users: mapped });
           }
@@ -366,14 +397,21 @@ export const useOSStore = create<OSState>()(
           if (fresh) {
             set({
               user: {
-                username:  fresh.username,
-                email:     fresh.email,
-                password:  fresh.password ?? "",
-                createdAt: fresh.createdAt ?? "",
-                role:      fresh.role === "admin" ? "admin" : "user",
-                isBanned:  !!fresh.isBanned,
-                isFrozen:  !!fresh.isFrozen,
-                lastLogin: fresh.lastLogin ?? "",
+                username:     fresh.username,
+                email:        fresh.email,
+                password:     fresh.password ?? "",
+                createdAt:    fresh.createdAt ?? "",
+                role:         fresh.role ?? "user",
+                isBanned:     !!fresh.isBanned,
+                isFrozen:     !!fresh.isFrozen,
+                isMuted:      !!fresh.isMuted,
+                isBannable:   !!fresh.isBannable,
+                isFreezeable: !!fresh.isFreezeable,
+                banUntil:     fresh.banUntil ?? "",
+                freezeUntil:  fresh.freezeUntil ?? "",
+                muteUntil:    fresh.muteUntil ?? "",
+                kickedAt:     fresh.kickedAt ?? "",
+                lastLogin:    fresh.lastLogin ?? "",
               }
             });
           }
@@ -384,6 +422,16 @@ export const useOSStore = create<OSState>()(
 
       isUsersLoading: false,
       setIsUsersLoading: (val) => set({ isUsersLoading: val }),
+      /* BROADCAST */
+      broadcastMessages: [],
+      addBroadcast: (msg) => set((state) => ({
+        broadcastMessages: [...state.broadcastMessages, msg],
+      })),
+      dismissBroadcast: (id) => set((state) => ({
+        broadcastMessages: state.broadcastMessages.filter(m => m.id !== id),
+      })),
+      seenKickedAt: null,
+      setSeenKickedAt: (val) => set({ seenKickedAt: val }),
     }),
     {
       name: "troy-os-store",
@@ -432,6 +480,7 @@ export const useOSStore = create<OSState>()(
         windowBorderGlow: state.windowBorderGlow,
         clockSettings: state.clockSettings,
         clockPosition: state.clockPosition,
+        seenKickedAt: state.seenKickedAt,
       }),
       onRehydrateStorage: () => (state: OSState | undefined) => {
         state?.setHasHydrated(true);

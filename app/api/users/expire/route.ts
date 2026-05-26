@@ -21,6 +21,13 @@ export async function POST() {
           console.log(`Auto-unfrozen: ${user.email}`);
         }
       }
+      if (user.isMuted && user.muteUntil && user.muteUntil !== 'permanent') {
+        const expiry = new Date(user.muteUntil).getTime();
+        if (!isNaN(expiry) && now >= expiry) {
+          await updateUser(user.email, { isMuted: false, muteUntil: '' });
+          console.log(`Auto-unmuted: ${user.email}`);
+        }
+      }
     }
 
     return NextResponse.json({ ok: true });
