@@ -2,7 +2,7 @@
 
 import { useOSStore } from '@/store/useOSStore';
 import Image from 'next/image';
-import lockIcon from '@/public/icons/sui/lock.svg';
+import LockIcon from '@/public/icons/sui/lock.svg';
 
 
 export default function FrozenScreen() {
@@ -34,11 +34,7 @@ export default function FrozenScreen() {
         animation: 'frozenPulse 3s ease-in-out infinite',
         filter: 'drop-shadow(0 0 24px rgba(96,165,250,0.6))',
       }}>
-        <Image 
-        src={lockIcon} 
-         alt="Lock" 
-        width={64} 
-        height={64} />
+      <LockIcon width={64} height={64} />
       </div>
 
       <div style={{
