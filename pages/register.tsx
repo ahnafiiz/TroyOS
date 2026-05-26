@@ -9,11 +9,12 @@ import { iconRegistry } from '@/icons/iconRegistry';
 type Stage = 'form' | 'otp' | 'login';
 
 const RESEND_COOLDOWN = 30;
-  const stageIconMap = {
-    form: iconRegistry.lock,
-    login: iconRegistry.unlock,
-    otp: iconRegistry.mail,
-  } as const;
+
+const stageIconMap = {
+  form: iconRegistry.lock,
+  login: iconRegistry.unlock,
+  otp: iconRegistry.mail,
+} as const;
 
 export const RegisterPage = () => {
   const setUser        = useOSStore((s) => s.setUser);
@@ -123,7 +124,12 @@ export const RegisterPage = () => {
       const dbResult = await response.json();
       if (dbResult.success) {
         clearOTP(email);
-        setUser({ username, email, password, createdAt: new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Dublin' }).substring(0, 16) });
+        setUser({
+          username,
+          email,
+          password,
+          createdAt: new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Dublin' }).substring(0, 16),
+        });
         setIsLoggedIn(true);
         setIsFirstBoot(false);
       } else {
@@ -137,36 +143,36 @@ export const RegisterPage = () => {
     }
   };
 
- const handleLoginSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  e.stopPropagation();
-  setIsLoading(true);
-  setError(null);
-  try {
-    const identifier = loginIdentifier?.trim();
-    const pwd = loginPasswordRef.current?.value?.trim() || loginPassword?.trim() || '';
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, password: pwd }),
-    });
-    const result = await response.json();
-    if (response.ok && result.success) {
-      setUser(result.user);
-      setIsLoggedIn(true);
-      setIsFirstBoot(false);
-    } else if (response.status === 403) {
-      setError(result.error); // shows "This account has been banned." or "This account is frozen."
-    } else {
-      setError(result.error || 'Invalid credentials.');
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const identifier = loginIdentifier?.trim();
+      const pwd = loginPasswordRef.current?.value?.trim() || loginPassword?.trim() || '';
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password: pwd }),
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        setUser(result.user);
+        setIsLoggedIn(true);
+        setIsFirstBoot(false);
+      } else if (response.status === 403) {
+        setError(result.error);
+      } else {
+        setError(result.error || 'Invalid credentials.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Server connection error during login.');
+    } finally {
+      setIsLoading(false);
     }
-  } catch (err) {
-    console.error(err);
-    setError('Server connection error during login.');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const handleResend = async () => {
     if (cooldown > 0) return;
@@ -187,7 +193,6 @@ export const RegisterPage = () => {
     { id: 'confirm',  label: 'Confirm Password', type: 'password', value: confirmPassword, setter: setConfirmPassword },
   ];
 
-  // Spinner style reused across buttons
   const spinner = (
     <span style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'rgba(255,255,255,0.9)', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
   );
@@ -282,9 +287,9 @@ export const RegisterPage = () => {
         <div style={{ textAlign: 'center', marginBottom: 26, marginTop: devCode ? 30 : 0, transition: 'margin 0.3s ease' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 46, height: 46, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 13, fontSize: 18 }}>
             {(() => {
-        const Icon = stageIconMap[stage];
-        return Icon ? <Icon style={{ width: 24, height: 24, marginBottom: 4 }} /> : null;
-      })()}
+              const Icon = stageIconMap[stage];
+              return Icon ? <Icon style={{ width: 24, height: 24, marginBottom: 4 }} /> : null;
+            })()}
           </div>
           <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'rgba(255,255,255,0.93)', letterSpacing: '-0.025em' }}>
             {stage === 'form' ? 'Welcome to Troy OS' : stage === 'login' ? 'Welcome back' : 'Check your email'}
@@ -307,7 +312,8 @@ export const RegisterPage = () => {
               {fields.map((f) => (
                 <div key={f.id}>
                   <label style={{ display: 'block', marginBottom: 4, fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.34)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{f.label}</label>
-                  <input className="reg-input" type={f.type} value={f.value}
+                  <input
+                    className="reg-input" type={f.type} value={f.value}
                     onChange={(e) => { f.setter(e.target.value); setError(null); }}
                     onFocus={() => setFocusedField(f.id)} onBlur={() => setFocusedField(null)} required
                     style={{ width: '100%', boxSizing: 'border-box', padding: '10px 13px', borderRadius: 10, background: focusedField === f.id ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.04)', border: focusedField === f.id ? '1px solid rgba(96,165,250,0.44)' : '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.92)', fontSize: 13, fontFamily: 'inherit', transition: 'background 0.15s, border-color 0.15s, box-shadow 0.15s', boxShadow: focusedField === f.id ? '0 0 0 3px rgba(96,165,250,0.09)' : 'none' }}
@@ -331,11 +337,17 @@ export const RegisterPage = () => {
           <form onSubmit={handleLoginSubmit} style={{ width: '100%' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
               <label style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.34)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Username or Email</label>
-              <input className="reg-input" type="text" value={loginIdentifier} onChange={e => { setLoginIdentifier(e.target.value); setError(null); }} required
-                style={{ width: '100%', boxSizing: 'border-box', padding: '10px 13px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.92)', fontSize: 13, fontFamily: 'inherit' }} />
+              <input
+                className="reg-input" type="text" value={loginIdentifier}
+                onChange={e => { setLoginIdentifier(e.target.value); setError(null); }} required
+                style={{ width: '100%', boxSizing: 'border-box', padding: '10px 13px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.92)', fontSize: 13, fontFamily: 'inherit' }}
+              />
               <label style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.34)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Password</label>
-              <input ref={loginPasswordRef} className="reg-input" type="password" value={loginPassword} onChange={e => { setLoginPassword(e.target.value); setError(null); }} required
-                style={{ width: '100%', boxSizing: 'border-box', padding: '10px 13px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.92)', fontSize: 13, fontFamily: 'inherit' }} />
+              <input
+                ref={loginPasswordRef} className="reg-input" type="password" value={loginPassword}
+                onChange={e => { setLoginPassword(e.target.value); setError(null); }} required
+                style={{ width: '100%', boxSizing: 'border-box', padding: '10px 13px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.92)', fontSize: 13, fontFamily: 'inherit' }}
+              />
             </div>
             <button type="submit" disabled={isLoading} className="primary-btn" style={{ width: '100%', padding: '11px 0', borderRadius: 10, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.30)', color: 'rgba(255,255,255,0.90)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               {isLoading ? <>{spinner} Logging in…</> : 'Log In'}
@@ -353,7 +365,8 @@ export const RegisterPage = () => {
           <form onSubmit={handleOtpSubmit} style={{ animation: 'otpSlideIn 0.38s cubic-bezier(0.22,1,0.36,1) both' }}>
             <div style={{ display: 'flex', gap: 9, justifyContent: 'center', marginBottom: 22 }}>
               {otp.map((digit, i) => (
-                <input key={i} ref={(el) => { otpRefs.current[i] = el; }} className="otp-box"
+                <input
+                  key={i} ref={(el) => { otpRefs.current[i] = el; }} className="otp-box"
                   type="text" inputMode="numeric" maxLength={1} value={digit} autoFocus={i === 0}
                   onChange={(e) => handleOtpChange(i, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(i, e)} onPaste={handleOtpPaste}
@@ -382,4 +395,5 @@ export const RegisterPage = () => {
     </div>
   );
 };
+
 export default RegisterPage;
