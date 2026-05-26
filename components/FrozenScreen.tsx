@@ -1,7 +1,9 @@
 'use client';
 
 import { useOSStore } from '@/store/useOSStore';
+import Image from 'next/image';
 import lockIcon from '@/public/icons/sui/lock.svg';
+
 
 export default function FrozenScreen() {
   const logout = useOSStore((s) => s.logout);
@@ -32,7 +34,11 @@ export default function FrozenScreen() {
         animation: 'frozenPulse 3s ease-in-out infinite',
         filter: 'drop-shadow(0 0 24px rgba(96,165,250,0.6))',
       }}>
-        {lockIcon}
+        <Image 
+        src={lockIcon} 
+         alt="Lock" 
+        width={64} 
+        height={64} />
       </div>
 
       <div style={{
