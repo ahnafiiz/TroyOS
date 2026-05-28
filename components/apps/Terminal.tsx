@@ -44,16 +44,6 @@ interface OSStore {
 
 const EMPTY_LINES: TerminalLine[] = [];
 
-const INITIAL_BOOT_TIME =
-  typeof window !== 'undefined' ? Date.now() - 368420000 : Date.now();
-
-const VIRTUAL_FS: Record<string, string> = {
-  'readme.md': `# troy-os\nInternal system. Unauthorized access is prohibited.`,
-  'config.json': `{\n  "systemId": "NEXUS-V2",\n  "buildVersion": "2.0.6",\n  "kernelSecurity": "enforced",\n  "adminAccessLog": "/var/log/secure_auth"\n}`,
-  'theme.css': `:root {\n  --terminal-green: #10b981;\n}`,
-  'todo.txt': `- fix memory leak in WindowManager\n- patch sandbox escape in browser subprocess\n- call Troy re: db credentials`,
-};
-
 const ROLE_COLORS: Record<string, string> = {
   owner:     '#f59e0b',
   admin:     '#ef4444',
@@ -65,15 +55,101 @@ const ROLE_HIERARCHY: Record<string, number> = {
   owner: 4, admin: 3, moderator: 2, user: 1,
 };
 
+// ─── Real system info helpers ────────────────────────────────
+
+function getRealResolution(): string {
+  if (typeof window === 'undefined') return 'unknown';
+  return `${window.screen.width}x${window.screen.height} (viewport: ${window.innerWidth}x${window.innerHeight})`;
+}
+
+function getRealCPUCores(): string {
+  if (typeof navigator === 'undefined') return 'unknown';
+  return navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} logical cores` : 'unknown';
+}
+
+function getRealMemory(): string {
+  if (typeof navigator === 'undefined') return 'unknown';
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  return nav.deviceMemory ? `${nav.deviceMemory} GiB` : 'unknown';
+}
+
+function getRealOS(): string {
+  if (typeof navigator === 'undefined') return 'unknown';
+  const ua = navigator.userAgent;
+  if (ua.includes('Windows NT 10.0')) return 'Windows 10/11';
+  if (ua.includes('Windows NT')) return 'Windows';
+  if (ua.includes('Mac OS X')) {
+    const match = ua.match(/Mac OS X ([0-9_]+)/);
+    return match ? `macOS ${match[1].replace(/_/g, '.')}` : 'macOS';
+  }
+  if (ua.includes('Linux')) return 'Linux';
+  if (ua.includes('Android')) return 'Android';
+  if (ua.includes('iPhone') || ua.includes('iPad')) return 'iOS';
+  return 'unknown';
+}
+
+function getRealBrowser(): string {
+  if (typeof navigator === 'undefined') return 'unknown';
+  const ua = navigator.userAgent;
+  if (ua.includes('Firefox/')) return `Firefox ${ua.match(/Firefox\/([\d.]+)/)?.[1] ?? ''}`;
+  if (ua.includes('Edg/'))     return `Edge ${ua.match(/Edg\/([\d.]+)/)?.[1] ?? ''}`;
+  if (ua.includes('Chrome/'))  return `Chrome ${ua.match(/Chrome\/([\d.]+)/)?.[1] ?? ''}`;
+  if (ua.includes('Safari/') && !ua.includes('Chrome')) return `Safari ${ua.match(/Version\/([\d.]+)/)?.[1] ?? ''}`;
+  return 'unknown';
+}
+
+function getRealTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return 'unknown';
+  }
+}
+
+function getRealLanguage(): string {
+  if (typeof navigator === 'undefined') return 'unknown';
+  return navigator.language ?? 'unknown';
+}
+
+function getRealColorDepth(): string {
+  if (typeof window === 'undefined') return 'unknown';
+  return `${window.screen.colorDepth}-bit`;
+}
+
+function getRealOnlineStatus(): string {
+  if (typeof navigator === 'undefined') return 'unknown';
+  return navigator.onLine ? 'online' : 'offline';
+}
+
+function getRealConnectionType(): string {
+  if (typeof navigator === 'undefined') return 'unknown';
+  const nav = navigator as Navigator & { connection?: { effectiveType?: string; downlink?: number } };
+  if (!nav.connection) return 'unknown';
+  const parts = [];
+  if (nav.connection.effectiveType) parts.push(nav.connection.effectiveType);
+  if (nav.connection.downlink)      parts.push(`~${nav.connection.downlink} Mbps`);
+  return parts.length ? parts.join(' ') : 'unknown';
+}
+
+function getRealTouchSupport(): string {
+  if (typeof window === 'undefined') return 'no';
+  return ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? `yes (${navigator.maxTouchPoints} points)` : 'no';
+}
+
+function getRealCookiesEnabled(): string {
+  if (typeof navigator === 'undefined') return 'unknown';
+  return navigator.cookieEnabled ? 'yes' : 'no';
+}
+
 export default function Terminal() {
   const store = useOSStore() as unknown as OSStore;
 
-  const terminalLines  = store.terminalLines ?? EMPTY_LINES;
+  const terminalLines   = store.terminalLines ?? EMPTY_LINES;
   const addTerminalLine = store.addTerminalLine;
-  const user           = store.user;
-  const users          = store.users ?? [];
-  const setUsers       = store.setUsers ?? (() => {});
-  const logout         = store.logout ?? (() => {});
+  const user            = store.user;
+  const users           = store.users ?? [];
+  const setUsers        = store.setUsers ?? (() => {});
+  const logout          = store.logout ?? (() => {});
 
   const username  = user?.username ?? 'guest';
   const role      = user?.role ?? 'user';
@@ -86,18 +162,36 @@ export default function Terminal() {
   const clearTerminal = store.clearTerminal ?? (() => {});
 
   const [input,        setInput]        = useState('');
-  const [bootTime,     setBootTime]     = useState(INITIAL_BOOT_TIME);
   const [history,      setHistory]      = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [serverUptime, setServerUptime] = useState<number | null>(null);
+  const sessionStart = useRef<number>(Date.now());
 
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Fetch server start time once on mount
+  useEffect(() => {
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(d => { if (d.startedAt) setServerUptime(d.startedAt); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [terminalLines]);
 
-  const getUptime = (): string => {
-    const diff  = Date.now() - bootTime;
+  const getClientUptime = (): string => {
+    const diff  = Date.now() - sessionStart.current;
+    const hours = Math.floor(diff / 3600000);
+    const mins  = Math.floor((diff / 60000) % 60);
+    const secs  = Math.floor((diff / 1000) % 60);
+    return `${hours}h ${mins}m ${secs}s`;
+  };
+
+  const getServerUptime = (): string => {
+    if (!serverUptime) return 'unknown';
+    const diff  = Date.now() - serverUptime;
     const days  = Math.floor(diff / 86400000);
     const hours = Math.floor((diff / 3600000) % 24);
     const mins  = Math.floor((diff / 60000) % 60);
@@ -149,9 +243,9 @@ export default function Terminal() {
     const trimmed = raw.trim();
     if (!trimmed) return;
 
-    const tokens  = trimmed.split(' ');
-    const cmd     = tokens[0].toLowerCase();
-    const args    = tokens.slice(1);
+    const tokens = trimmed.split(' ');
+    const cmd    = tokens[0].toLowerCase();
+    const args   = tokens.slice(1);
 
     if (cmd === 'clear') {
       clearTerminal();
@@ -163,7 +257,6 @@ export default function Terminal() {
     setHistory(prev => [trimmed, ...prev.filter(h => h !== trimmed)].slice(0, 50));
     setHistoryIndex(-1);
 
-    // Permission helpers
     const requireRole = (minRole: string): boolean => {
       if ((ROLE_HIERARCHY[role] ?? 0) >= (ROLE_HIERARCHY[minRole] ?? 99)) return true;
       err('permission denied');
@@ -183,12 +276,13 @@ export default function Terminal() {
         line(`│  echo [text]       print text                 │`);
         line(`│  pwd               working directory          │`);
         line(`│  date              current date & time        │`);
-        line(`│  uptime            system uptime              │`);
+        line(`│  uptime            session & server uptime    │`);
         line(`│  top / ps          running processes          │`);
         line(`│  neofetch          system info                │`);
         line(`│  ip / ifconfig     network info               │`);
         line(`│  ping [host]       ping a host                │`);
         line(`│  env               environment vars           │`);
+        line(`│  sysinfo           detailed hardware info     │`);
         line(`│  matrix            ???                        │`);
         line(`│  clear             clear terminal             │`);
         line(`└───────────────────────────────────────────────┘`);
@@ -258,7 +352,10 @@ export default function Terminal() {
         break;
 
       case 'date':
-        line(new Date().toLocaleString('en-IE', { timeZone: 'Europe/Dublin' }));
+        {
+          const now = new Date();
+          line(now.toLocaleString('en-IE', { timeZone: getRealTimezone(), weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }));
+        }
         break;
 
       case 'echo':
@@ -266,50 +363,76 @@ export default function Terminal() {
         break;
 
       case 'env':
-        line(`USER     = ${isAdmin ? 'root' : username}`);
-        line(`HOME     = ${isOwner ? '/root/owner' : isAdmin ? '/root' : `/home/${username}`}`);
-        line(`SHELL    = /bin/bash`);
-        line(`ROLE     = ${role}`);
-        line(`PATH     = /usr/local/sbin:/usr/local/bin:/usr/bin:/bin`);
-        line(`DISPLAY  = :0.0`);
-        line(`HOSTTYPE = x86_64`);
+        line(`USER        = ${username}`);
+        line(`EMAIL       = ${user?.email ?? 'n/a'}`);
+        line(`ROLE        = ${role}`);
+        line(`HOME        = ${isOwner ? '/root/owner' : isAdmin ? '/root' : `/home/${username}`}`);
+        line(`SHELL       = /bin/bash`);
+        line(`LANG        = ${getRealLanguage()}`);
+        line(`TZ          = ${getRealTimezone()}`);
+        line(`TERM        = xterm-256color`);
+        line(`PATH        = /usr/local/sbin:/usr/local/bin:/usr/bin:/bin`);
+        line(`DISPLAY     = :0.0`);
+        line(`HOSTTYPE    = ${getRealCPUCores().includes('unknown') ? 'x86_64' : 'x86_64'}`);
+        line(`BROWSER     = ${getRealBrowser()}`);
+        line(`HOST_OS     = ${getRealOS()}`);
+        line(`ONLINE      = ${getRealOnlineStatus()}`);
         break;
 
       case 'uptime':
-        line(`uptime:  ${getUptime()}`);
-        line(`load avg: 0.21  0.14  0.05`);
+        line(`session uptime:  ${getClientUptime()}`);
+        line(`server uptime:   ${getServerUptime()}`);
+        line(`load avg:        — (not available in browser)`);
         break;
 
       case 'ps':
       case 'top':
-        line(`  PID   USER       %CPU  %MEM  COMMAND`);
-        line(`  ───   ────       ────  ────  ───────`);
-        line(`    1   root        0.0   0.0  init`);
-        line(`   14   ${username.padEnd(10)}  4.2   1.1  nextjs-server`);
-        line(`   44   ${username.padEnd(10)}  1.1   0.1  window-mgr`);
-        line(`   98   ${username.padEnd(10)}  0.7   0.0  terminal`);
+        line(`  note: process list is not available in a browser context.`);
+        line(`  real browser tasks:`);
+        line(`  ┌─ TASK                        ENGINE         STATE   ┐`);
+        line(`  │  troy-os renderer            Chromium/V8    running │`);
+        line(`  │  service worker              browser        ${typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? 'active ' : 'inactive'}│`);
+        line(`  │  websocket/sse               browser net    active  │`);
+        line(`  └────────────────────────────────────────────────────┘`);
+        line(`  CPU cores:   ${getRealCPUCores()}`);
+        line(`  Device RAM:  ${getRealMemory()}`);
         break;
 
       case 'ping':
         if (!args[0]) { err('ping: missing host operand'); break; }
-        line(`PING ${args[0]}: 56 data bytes`);
-        line(`64 bytes from ${args[0]}: icmp_seq=0 ttl=64 time=12.4 ms`);
-        line(`64 bytes from ${args[0]}: icmp_seq=1 ttl=64 time=11.8 ms`);
-        line(`2 packets transmitted, 2 received, 0% packet loss`);
+        line(`ping: operation not permitted`);
+        line(`ICMP packets cannot be sent from a browser context.`);
+        line(`tip: use your OS terminal to run: ping ${args[0]}`);
         break;
 
       case 'ip':
       case 'ifconfig':
-        line(`eth0   inet 192.168.1.144   netmask 255.255.255.0`);
-        line(`lo     inet 127.0.0.1       netmask 255.0.0.0`);
+        line(`note: network interface details are not accessible from a browser.`);
+        line(``);
+        line(`what is available:`);
+        line(`  online status  ${getRealOnlineStatus()}`);
+        line(`  connection     ${getRealConnectionType()}`);
+        line(`  language       ${getRealLanguage()}`);
+        line(`  timezone       ${getRealTimezone()}`);
+        line(``);
+        line(`tip: run "ip addr" in your OS terminal for real interface info.`);
         break;
 
       case 'cat':
         if (!args[0]) { err('cat: missing operand'); break; }
-        if (VIRTUAL_FS[args[0].toLowerCase()]) {
-          line(VIRTUAL_FS[args[0].toLowerCase()]);
-        } else {
-          err(`cat: ${args[0]}: no such file or directory`);
+        {
+          const filename = args[0].toLowerCase();
+          const VIRTUAL_FS: Record<string, string> = {
+            'readme.md':   `# troy-os\nVersion: ${OS_VERSION}\nBuild: ${OS_BUILD}\nInternal system. Unauthorized access is prohibited.`,
+            'config.json': JSON.stringify({ systemId: 'NEXUS-V2', buildVersion: OS_VERSION, osBuild: OS_BUILD, kernelSecurity: 'enforced', adminAccessLog: '/var/log/secure_auth' }, null, 2),
+            'theme.css':   `:root {\n  --terminal-green: #10b981;\n  --accent: #60a5fa;\n}`,
+            'todo.txt':    `- fix memory leak in WindowManager\n- patch sandbox escape in browser subprocess\n- call Troy re: db credentials`,
+          };
+          if (VIRTUAL_FS[filename]) {
+            line(VIRTUAL_FS[filename]);
+          } else {
+            err(`cat: ${args[0]}: no such file or directory`);
+          }
         }
         break;
 
@@ -325,6 +448,25 @@ export default function Terminal() {
         }, 80);
         break;
 
+      case 'sysinfo':
+        line(`┌─ System Information ──────────────────────────────────┐`);
+        line(`│  host OS        ${getRealOS().padEnd(38)}│`);
+        line(`│  browser        ${getRealBrowser().padEnd(38)}│`);
+        line(`│  CPU cores      ${getRealCPUCores().padEnd(38)}│`);
+        line(`│  device RAM     ${getRealMemory().padEnd(38)}│`);
+        line(`│  resolution     ${(`${window.screen.width}x${window.screen.height}`).padEnd(38)}│`);
+        line(`│  viewport       ${(`${window.innerWidth}x${window.innerHeight}`).padEnd(38)}│`);
+        line(`│  color depth    ${getRealColorDepth().padEnd(38)}│`);
+        line(`│  timezone       ${getRealTimezone().padEnd(38)}│`);
+        line(`│  language       ${getRealLanguage().padEnd(38)}│`);
+        line(`│  online         ${getRealOnlineStatus().padEnd(38)}│`);
+        line(`│  connection     ${getRealConnectionType().padEnd(38)}│`);
+        line(`│  touch          ${getRealTouchSupport().padEnd(38)}│`);
+        line(`│  cookies        ${getRealCookiesEnabled().padEnd(38)}│`);
+        line(`│  pixel ratio    ${String(window.devicePixelRatio ?? 'unknown').padEnd(38)}│`);
+        line(`└───────────────────────────────────────────────────────┘`);
+        break;
+
       case 'neofetch':
       case 'system':
         line(`                                              `);
@@ -335,12 +477,20 @@ export default function Terminal() {
         line(`    ██║   ██║  ██║╚██████╔╝   ██║           `);
         line(`    ╚═╝   ╚═╝  ╚═╝ ╚═════╝    ╚═╝           `);
         line(`                                              `);
-        line(`  OS          Troy OS ${OS_VERSION} (build ${OS_BUILD})`);
-        line(`  Uptime      ${getUptime()}`);
-        line(`  Shell       bash`);
-        line(`  Role        ${role}`);
-        line(`  User        ${username}`);
-        line(`  Resolution  ${typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : 'unknown'}`);
+        line(`  OS           Troy OS ${OS_VERSION} (build ${OS_BUILD})`);
+        line(`  Host OS      ${getRealOS()}`);
+        line(`  Browser      ${getRealBrowser()}`);
+        line(`  Session up   ${getClientUptime()}`);
+        line(`  Server up    ${getServerUptime()}`);
+        line(`  CPU          ${getRealCPUCores()}`);
+        line(`  Memory       ${getRealMemory()}`);
+        line(`  Resolution   ${window.screen.width}x${window.screen.height}`);
+        line(`  Viewport     ${window.innerWidth}x${window.innerHeight}`);
+        line(`  Pixel ratio  ${window.devicePixelRatio}x`);
+        line(`  Timezone     ${getRealTimezone()}`);
+        line(`  Language     ${getRealLanguage()}`);
+        line(`  Network      ${getRealConnectionType()}`);
+        line(`  User         ${username} (${role})`);
         line(`                                              `);
         break;
 
@@ -470,7 +620,6 @@ export default function Terminal() {
           try {
             const res = await fetch(url);
             const logs = await res.json();
-            // Moderators only see their own actions
             const filtered = role === 'moderator'
               ? logs.filter((l: { adminEmail: string }) => l.adminEmail === user?.email)
               : role === 'admin'
@@ -635,20 +784,11 @@ export default function Terminal() {
       case 'broadcast':
         if (!requireRole('admin')) break;
         {
-          // broadcast <email|all> <message> [--time <s>] [--persist]
           if (args.length < 2) { err('usage: broadcast <email|all> <message> [--time <s>] [--persist]'); break; }
           const target = args[0];
           const persistFlag = args.includes('--persist');
           const timeIdx = args.indexOf('--time');
           const autoClose = timeIdx !== -1 ? parseInt(args[timeIdx + 1]) || null : null;
-          const msgParts = args.slice(1).filter((a, i) => {
-            if (a === '--persist') return false;
-            if (a === '--time') return false;
-            if (timeIdx !== -1 && i === timeIdx) return false;
-            if (timeIdx !== -1 && i === timeIdx + 1 - 1) return false; // the number after --time
-            return true;
-          });
-          // Cleaner parse — grab everything between target and flags
           const flagStart = args.findIndex(a => a.startsWith('--'));
           const messageArgs = flagStart === -1 ? args.slice(1) : args.slice(1, flagStart);
           const message = messageArgs.join(' ');
@@ -696,7 +836,6 @@ export default function Terminal() {
         err('initiating factory reset...');
         setTimeout(() => {
           clearTerminal();
-          setBootTime(Date.now());
           if (store.resetOS) store.resetOS();
           line('system reset complete.');
           line('type "help" to get started.');

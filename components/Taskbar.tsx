@@ -63,7 +63,7 @@ export default function Taskbar() {
     { id: 'browser',  name: 'Browser',      color: '#3b82f6', icon: '/icons/apps/browser.svg'  },
     { id: 'notes',    name: 'Notes',        color: '#d60000', icon: '/icons/apps/notes.svg'    },
     { id: 'ai',       name: 'AI Assistant', color: '#00fd37', icon: '/icons/apps/ai.svg'       },
-    { id: 'games',    name: 'Gaming Hub',   color: '#4c00ff', icon: '/icons/apps/games.svg'    },
+    { id: 'games',    name: 'Games',   color: '#4c00ff', icon: '/icons/apps/games.svg'    },
     { id: 'files',    name: 'Files',        color: '#06b6d4', icon: '/icons/apps/files.svg'    },
     { id: 'terminal', name: 'Terminal',     color: '#00940c', icon: '/icons/apps/terminal.svg' },
     { id: 'settings', name: 'Settings',     color: '#494cff', icon: '/icons/apps/settings.svg' },

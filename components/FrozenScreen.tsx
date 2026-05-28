@@ -1,6 +1,7 @@
 'use client';
 
 import { useOSStore } from '@/store/useOSStore';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import Image from 'next/image';
 import LockIcon from '@/public/icons/sui/lock.svg';
 
