@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export const OS_VERSION = "4.7.2";
-export const OS_BUILD = "25-05-2026";
+export const OS_VERSION = "4.7.5";
+export const OS_BUILD = "28-05-2026";
 
 export interface WindowState {
   id: string; title: string; appId: string; name?: string; emoji?: string;
